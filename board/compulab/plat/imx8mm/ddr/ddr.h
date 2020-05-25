@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Compulab Ltd.
+ * Copyright 2017 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */

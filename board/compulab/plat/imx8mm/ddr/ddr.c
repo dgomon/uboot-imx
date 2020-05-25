@@ -3,7 +3,7 @@
 #include <asm/io.h>
 #include <errno.h>
 #include <asm/io.h>
-#include <asm/arch/ddr.h>
+#include <asm/arch-imx8m/imx8m_ddr.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm-generic/gpio.h>
@@ -13,7 +13,6 @@
 #include <asm/arch/clock.h>
 #include <asm/mach-imx/gpio.h>
 #include "ddr.h"
-#include "../ucm-imx8m-mini.h"
 
 /* Forward declarations */
 u32 cl_eeprom_get_ddrinfo(void);
@@ -60,9 +59,16 @@ struct lpddr4_desc {
 	char *desc[4];
 };
 
+struct lpddr4_tcm_desc {
+	unsigned int size;
+	unsigned int sign;
+	unsigned int index;
+	unsigned int count;
+};
+
 #define DEFAULT (('D' << 24) + ('E' << 16 ) + ( 'F' << 8 ) + 'A')
 static const struct lpddr4_desc lpddr4_array[] = {
-	{ .name = "Micron", .id = 0xff020008, .size = 2048, .count = 1, .timing = &ucm_dram_timing_ff020008},
+	{ .name = "Micron", .id = 0xff020008, .size = 2048, .count = 1, .timing = &ucm_dram_timing_ff020008}, //Only the first timing entry is in use
 	{ .name = "Micron", .id = 0xff000110, .size = 4096, .count = 1, .timing = &ucm_dram_timing_ff000110},
 	{ .name = "Samsung",.id = 0x01061010, .size = 2048, .count = 1, .timing = &ucm_dram_timing_01061010},
 	{ .name = "Nanya",  .id = 0x05000010, .size = 2048, .count = 1, .timing = &ucm_dram_timing_01061010},
@@ -104,6 +110,7 @@ static void spl_tcm_fini(struct lpddr4_tcm_desc *lpddr4_tcm_desc) {
     lpddr4_tcm_desc->index = 0;
 }
 
+#define SPL_TCM_DATA 0x7e0000
 #define SPL_TCM_INIT spl_tcm_init(lpddr4_tcm_desc)
 #define SPL_TCM_FINI spl_tcm_fini(lpddr4_tcm_desc)
 
@@ -114,7 +121,7 @@ void spl_dram_init(void)
 	unsigned int ddr_found = 0;
 	int i = 0;
 
-	struct lpddr4_tcm_desc *lpddr4_tcm_desc = (struct lpddr4_tcm_desc *) TCM_DATA_CFG;
+	struct lpddr4_tcm_desc *lpddr4_tcm_desc = (struct lpddr4_tcm_desc *) SPL_TCM_DATA;
 
 	if (lpddr4_tcm_desc->sign != DEFAULT) {
 		/* get ddr type from the eeprom if not in tcm scan mode */
