@@ -72,6 +72,7 @@ static const struct lpddr4_desc lpddr4_array[] = {
 	{ .name = "Micron", .id = 0xff000110, .size = 4096, .count = 1, .timing = &ucm_dram_timing_ff000110},
 	{ .name = "Samsung",.id = 0x01061010, .size = 2048, .count = 1, .timing = &ucm_dram_timing_01061010},
 	{ .name = "Nanya",  .id = 0x05000010, .size = 2048, .count = 1, .timing = &ucm_dram_timing_01061010},
+	{ .name = "Nanya",  .id = 0x01050008, .size = 1024, .count = 1, .timing = &ucm_dram_timing_01050008},
 };
 
 static unsigned int lpddr4_get_mr(void)
