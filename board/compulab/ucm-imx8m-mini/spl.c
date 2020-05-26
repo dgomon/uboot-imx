@@ -25,24 +25,77 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+static int const memopt_gpios[] = {
+	IMX_GPIO_NR(1, 0),
+	IMX_GPIO_NR(1, 15),
+};
+static iomux_v3_cfg_t const memopt_gpio_pads[] = {/* internal pull-up */
+	IMX8MM_PAD_GPIO1_IO00_GPIO1_IO0 | MUX_PAD_CTRL(0x140),
+	IMX8MM_PAD_GPIO1_IO15_GPIO1_IO15 | MUX_PAD_CTRL(0x140),
+};
+/* Read GPIO input to find out memory size */
+static int get_wired_ddr_size(void)
+{
+	unsigned int memopt = 0;
+	int ddr_size;
+	int pin_val;
+
+	imx_iomux_v3_setup_multiple_pads(memopt_gpio_pads,
+			ARRAY_SIZE(memopt_gpio_pads));
+
+	for(int i=0; ARRAY_SIZE(memopt_gpios) > i; ++i) {
+		gpio_request(memopt_gpios[i], "memopt");
+		gpio_direction_input(memopt_gpios[i]);
+		pin_val = gpio_get_value(memopt_gpios[i]);
+		if(0 > pin_val) {
+			printf("%s: GPIO[%i] read error %i\n",
+					__func__, memopt_gpios[i], -pin_val);
+			gpio_free(memopt_gpios[i]);
+			return -EINVAL;
+		}
+		else {
+			memopt |= pin_val << i;
+		}
+	}
+	switch (memopt) {
+	case 0:
+		ddr_size = 1;
+		break;
+	case 1:
+		ddr_size = 4;
+		break;
+	case 3:
+		ddr_size = 2;
+		break;
+	default:
+		ddr_size=-EINVAL;
+		printf("%s: invalid combination of memopt bits 0x%0x\n",
+				__func__, memopt);
+		break;
+	}
+	printf("DDR size %i GiB detectd\n", ddr_size);
+	writel(ddr_size, TCM_BOARD_CFG);
+	return ddr_size;
+}
+
+
 void spl_dram_init(void)
 {
 	/* ddr init */
-	int board_id = get_baseboard_id();
-
-	/* ddr init */
-	switch (board_id) {
-		case UCM_IMX8M_MINI_1G:
+	switch (get_wired_ddr_size()) {
+	case 1:
 		ddr_init(&ucm_dram_timing_1g);
 		break;
-		case UCM_IMX8M_MINI_2G:
+	case 2:
 		ddr_init(&ucm_dram_timing_2g);
 		break;
-		case UCM_IMX8M_MINI_4G:
+	case 4:
 		ddr_init(&ucm_dram_timing_4g);
 		break;
-		default:
-			return;
+	default:
+		printf("*** ERROR ***\n%s: DDR size is unknown -- stop!\n",
+				__func__);
+		while(true);
 	}
 }
 
