@@ -810,6 +810,8 @@ dtb-$(CONFIG_RCAR_GEN2) += \
 	r8a7794-alt-u-boot.dtb \
 	r8a7794-silk-u-boot.dtb
 
+dtb-$(CONFIG_TARGET_UCM_IMX8M_MINI) += ucm-imx8m-mini.dtb
+
 dtb-$(CONFIG_RCAR_GEN3) += \
 	r8a7795-h3ulcb-u-boot.dtb \
 	r8a7795-salvator-x-u-boot.dtb \
