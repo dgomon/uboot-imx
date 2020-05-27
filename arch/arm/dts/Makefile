@@ -800,6 +800,8 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 
 dtb-$(CONFIG_ARCH_IMXRT) += imxrt1050-evk.dtb
 
+dtb-$(CONFIG_TARGET_UCM_IMX8M_MINI) += ucm-imx8m-mini.dtb
+
 dtb-$(CONFIG_RCAR_GEN2) += \
 	r8a7790-lager-u-boot.dtb \
 	r8a7790-stout-u-boot.dtb \
@@ -809,8 +811,6 @@ dtb-$(CONFIG_RCAR_GEN2) += \
 	r8a7793-gose-u-boot.dtb \
 	r8a7794-alt-u-boot.dtb \
 	r8a7794-silk-u-boot.dtb
-
-dtb-$(CONFIG_TARGET_UCM_IMX8M_MINI) += ucm-imx8m-mini.dtb
 
 dtb-$(CONFIG_RCAR_GEN3) += \
 	r8a7795-h3ulcb-u-boot.dtb \

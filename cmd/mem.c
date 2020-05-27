@@ -880,7 +880,8 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 #else
 	const int alt_test = 0;
 #endif
-	/* Test only first bank */
+
+	/* Test only the first bank */
 	start = gd->bd->bi_dram[0].start;
 	end = start + gd->bd->bi_dram[0].size *
 		MEMTEST_NUMERATOR / MEMTEST_DIVIDER;
