@@ -7,6 +7,6 @@
 #ifndef __UCM_IMX8M_MINI__
 #define __UCM_IMX8M_MINI__
 
-#define TCM_BOARD_CFG 0x7e0000
+#define TCM_DATA_CFG 0x7e0000
 
 #endif

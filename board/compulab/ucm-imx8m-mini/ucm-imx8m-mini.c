@@ -150,11 +150,28 @@ int board_postclk_init(void)
 }
 #endif
 
-int get_ddr_size(void)
+static phys_size_t imx8_ddr_size(void)
 {
-	return readl(TCM_BOARD_CFG);
-}
+    unsigned long value = readl(TCM_DATA_CFG);
+    phys_size_t dram_size = 0x40000000;;
 
+    switch (value) {
+    case 4096:
+        /*value = 3084;*/
+    case 3084:
+    case 2048:
+    case 1536:
+    case 1024:
+    case 768:
+    case 512:
+    case 256:
+        dram_size = ( value << 20 );
+        break;
+    default:
+        break;
+    };
+    return dram_size;
+}
 	/* Get the top of usable RAM */
 ulong board_get_usable_ram_top(ulong total_size)
 {
