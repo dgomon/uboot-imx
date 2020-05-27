@@ -25,5 +25,10 @@ config RAM_2G
 	help
 	 This option configures 2G RAM only
 
+config RAM_4G
+	bool "RAM_4G"
+	help
+	 This option configures 4G RAM only
+
 endchoice
 endif

@@ -201,10 +201,26 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
 
-#define CONFIG_SYS_SDRAM_BASE           0x40000000
-#define PHYS_SDRAM                      0x40000000
-#define PHYS_SDRAM_SIZE			0x80000000 /* 2GB DDR */
-#define CONFIG_NR_DRAM_BANKS		1
+#ifdef CONFIG_RAM_4G
+
+#define PHYS_SDRAM              0x40000000
+#define PHYS_SDRAM_SIZE         0xC0000000	/* 3GB */
+
+#define PHYS_SDRAM_2            0x100000000
+#define PHYS_SDRAM_2_SIZE       0x40000000	/* 1GB */
+
+#define CONFIG_NR_DRAM_BANKS    2
+
+#else
+
+#define PHYS_SDRAM              0x40000000
+#define PHYS_SDRAM_SIZE         0x80000000 /* 2GB */
+
+#define CONFIG_NR_DRAM_BANKS    1
+
+#endif
+
+#define CONFIG_SYS_SDRAM_BASE   PHYS_SDRAM
 
 #define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM
 #define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))

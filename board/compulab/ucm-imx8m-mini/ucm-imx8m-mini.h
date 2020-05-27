@@ -9,6 +9,7 @@
 
 #define UCM_IMX8M_MINI_1G 0x1
 #define UCM_IMX8M_MINI_2G 0x2
+#define UCM_IMX8M_MINI_4G 0x4
 
 int get_baseboard_id(void);
 

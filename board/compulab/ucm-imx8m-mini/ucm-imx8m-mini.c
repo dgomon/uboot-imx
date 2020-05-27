@@ -158,6 +158,9 @@ int get_baseboard_id(void)
 #ifdef CONFIG_RAM_2G
 #define BOARD_ID UCM_IMX8M_MINI_2G
 #endif
+#ifdef CONFIG_RAM_4G
+#define BOARD_ID UCM_IMX8M_MINI_4G
+#endif
 #ifdef BOARD_ID
 	return BOARD_ID;
 #else
@@ -165,19 +168,64 @@ int get_baseboard_id(void)
 #endif
 }
 
+/* Get the top of usable RAM */
+ulong board_get_usable_ram_top(ulong total_size)
+{
+
+        if(gd->ram_top > 0x100000000)
+            gd->ram_top = 0x100000000;
+
+        return gd->ram_top;
+}
+
 int dram_init(void)
 {
 	int board_id = get_baseboard_id();
-	if ((board_id == UCM_IMX8M_MINI_2G))
-		gd->ram_size = 0x80000000;
-	else
+	switch (board_id) {
+		case UCM_IMX8M_MINI_1G:
 		gd->ram_size = 0x40000000;
-
+		break;
+		case UCM_IMX8M_MINI_2G:
+		gd->ram_size = 0x80000000;
+		break;
+		case UCM_IMX8M_MINI_4G:
+		gd->ram_size = PHYS_SDRAM_SIZE;
+#if CONFIG_NR_DRAM_BANKS > 1
+		gd->ram_size += PHYS_SDRAM_2_SIZE;
+#endif
+		break;
+		default:
+			return -EINVAL;
+	}
 	/* rom_pointer[1] contains the size of TEE occupies */
 	if (rom_pointer[1])
 		gd->ram_size -= rom_pointer[1];
 
 	return 0;
+}
+
+int dram_init_banksize(void)
+{
+	gd->bd->bi_dram[0].start = PHYS_SDRAM;
+	if (rom_pointer[1])
+		gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE -rom_pointer[1];
+	else
+		gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE;
+
+#if CONFIG_NR_DRAM_BANKS > 1
+	gd->bd->bi_dram[1].start = PHYS_SDRAM_2;
+	gd->bd->bi_dram[1].size = PHYS_SDRAM_2_SIZE;
+#endif
+
+	return 0;
+}
+
+phys_size_t get_effective_memsize(void)
+{
+	if (rom_pointer[1])
+		return (PHYS_SDRAM_SIZE - rom_pointer[1]);
+	else
+		return PHYS_SDRAM_SIZE;
 }
 
 #ifdef CONFIG_OF_BOARD_SETUP

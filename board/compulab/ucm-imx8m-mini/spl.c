@@ -31,10 +31,19 @@ void spl_dram_init(void)
 	int board_id = get_baseboard_id();
 
 	/* ddr init */
-	if ((board_id == UCM_IMX8M_MINI_2G))
-		ddr_init(&ucm_dram_timing_2g);
-	else
+	switch (board_id) {
+		case UCM_IMX8M_MINI_1G:
 		ddr_init(&ucm_dram_timing_1g);
+		break;
+		case UCM_IMX8M_MINI_2G:
+		ddr_init(&ucm_dram_timing_2g);
+		break;
+		case UCM_IMX8M_MINI_4G:
+		ddr_init(&ucm_dram_timing_4g);
+		break;
+		default:
+			return;
+	}
 }
 
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE)
