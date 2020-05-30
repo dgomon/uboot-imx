@@ -30,6 +30,7 @@
 #include <imx_mipi_dsi_bridge.h>
 #include <mipi_dsi_panel.h>
 #include <asm/mach-imx/video.h>
+#include "ucm-imx8m-mini.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -149,13 +150,32 @@ int board_postclk_init(void)
 }
 #endif
 
+int get_baseboard_id(void)
+{
+#ifdef CONFIG_RAM_1G
+#define BOARD_ID UCM_IMX8M_MINI_1G
+#endif
+#ifdef CONFIG_RAM_2G
+#define BOARD_ID UCM_IMX8M_MINI_2G
+#endif
+#ifdef BOARD_ID
+	return BOARD_ID;
+#else
+#error Invalid memory configuration
+#endif
+}
+
 int dram_init(void)
 {
+	int board_id = get_baseboard_id();
+	if ((board_id == UCM_IMX8M_MINI_2G))
+		gd->ram_size = 0x80000000;
+	else
+		gd->ram_size = 0x40000000;
+
 	/* rom_pointer[1] contains the size of TEE occupies */
 	if (rom_pointer[1])
-		gd->ram_size = PHYS_SDRAM_SIZE - rom_pointer[1];
-	else
-		gd->ram_size = PHYS_SDRAM_SIZE;
+		gd->ram_size -= rom_pointer[1];
 
 	return 0;
 }

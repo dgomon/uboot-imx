@@ -19,24 +19,22 @@
 #include <asm/mach-imx/mxc_i2c.h>
 #include <fsl_esdhc.h>
 #include <mmc.h>
-
-#ifdef CONFIG_UCM_IMX8M_LPDDR4
 #include <asm/arch/imx8m_ddr.h>
-static void __dram_init(void) {
-	ddr_init(&dram_timing);
-}
-#else
 #include "ddr/ddr.h"
-static void __dram_init(void) {
-	ddr_init();
-}
-#endif
+#include "ucm-imx8m-mini.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
 void spl_dram_init(void)
 {
-	__dram_init();
+	/* ddr init */
+	int board_id = get_baseboard_id();
+
+	/* ddr init */
+	if ((board_id == UCM_IMX8M_MINI_2G))
+		ddr_init(&ucm_dram_timing_2g);
+	else
+		ddr_init(&ucm_dram_timing_1g);
 }
 
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE)

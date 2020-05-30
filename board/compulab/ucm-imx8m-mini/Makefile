@@ -8,6 +8,5 @@ obj-y += ucm-imx8m-mini.o
 
 ifdef CONFIG_SPL_BUILD
 obj-y += spl.o
-obj-$(CONFIG_UCM_IMX8M_LPDDR4) += lpddr4_timing.o
-obj-$(CONFIG_UCM_IMX8M_LPDDR4_VAL) += ddr/
+obj-y += ddr/lpddr4_timing_1g.o ddr/lpddr4_timing_2g.o
 endif
