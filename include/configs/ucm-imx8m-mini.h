@@ -207,13 +207,10 @@
 
 #define PHYS_SDRAM              0x40000000
 #define PHYS_SDRAM_2            0x100000000
-#define PHYS_SDRAM_SIZE         0x80000000 /* 2GB default size*/
-#undef PHYS_SDRAM_2_SIZE /* Memory chip autodetection */
+#define PHYS_SDRAM_SIZE   0 /* Memory chip autodetection */
+#define PHYS_SDRAM_2_SIZE 0 /* Memory chip autodetection */
 #define CONFIG_NR_DRAM_BANKS    4
-
 #define CONFIG_SYS_SDRAM_BASE   PHYS_SDRAM
-#define PHYS_SDRAM_SIZE			0x80000000 /* 2GB DDR */
-#define PHYS_SDRAM_2_SIZE		0x40000000
 
 #define MEMTEST_DIVIDER   2
 #define MEMTEST_NUMERATOR 1

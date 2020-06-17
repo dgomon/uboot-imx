@@ -169,7 +169,7 @@ struct mm_region *mem_map = imx8m_mem_map;
 void enable_caches(void)
 {
 	/* If OPTEE runs, remove OPTEE memory from MMU table to avoid speculative prefetch */
-	if (rom_pointer[1]) {
+	if (1 /*rom_pointer[1]*/) {
 
 		/* TEE are loaded, So the ddr bank structures
 		* have been modified update mmu table accordingly
@@ -179,7 +179,12 @@ void enable_caches(void)
 		* imx8m_mem_map for DRAM1
 		*/
 		int entry = 5;
-		u64 attrs = imx8m_mem_map[entry].attrs;
+		u64 attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+#ifdef CONFIG_IMX_TRUSTY_OS
+				PTE_BLOCK_INNER_SHARE;
+#else
+				PTE_BLOCK_OUTER_SHARE;
+#endif
 		while (i < CONFIG_NR_DRAM_BANKS && entry < 8) {
 			if (gd->bd->bi_dram[i].start == 0)
 				break;

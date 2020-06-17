@@ -153,25 +153,21 @@ int board_postclk_init(void)
 #endif
 int board_phys_sdram_size(phys_size_t *size)
 {
-    unsigned long value = readl(TCM_DATA_CFG);
-    *size = 0x80000000;
+	struct lpddr4_tcm_desc *lpddr4_tcm_desc = (struct lpddr4_tcm_desc *) TCM_DATA_CFG;
 
-    switch (value) {
-    case 4096:
-        /*value = 3084;*/
-    case 3084:
-    case 2048:
-    case 1536:
-    case 1024:
-    case 768:
-    case 512:
-    case 256:
-        *size = ( value << 20 );
-        break;
-    default:
-        break;
-    };
-    return 0;
+	switch (lpddr4_tcm_desc->size) {
+	case 4096:
+	case 2048:
+	case 1024:
+		*size = (1L << 20) * lpddr4_tcm_desc->size;
+		break;
+	default:
+		printf("%s: DRAM size %uM is not supported \n", __func__,
+				lpddr4_tcm_desc->size);
+		while ( 1 ) {};
+		break;
+	};
+	return 0;
 }
 	/* Get the top of usable RAM */
 ulong board_get_usable_ram_top(ulong total_size)
@@ -188,6 +184,7 @@ int dram_init(void)
 	phys_size_t sdram_size;
 	int ret;
 	ret = board_phys_sdram_size(&sdram_size);
+	printf("%s: size %llu\n", __func__, sdram_size);
 	if (ret)
 		return ret;
 
@@ -219,21 +216,31 @@ int dram_init_banksize(void)
 	}
 
 	gd->bd->bi_dram[bank].start = PHYS_SDRAM;
+	gd->bd->bi_dram[bank].size = bank_1_size;
+
 	if (rom_pointer[1]) {
 		phys_addr_t optee_start = (phys_addr_t)rom_pointer[0];
 		phys_size_t optee_size = (size_t)rom_pointer[1];
 
-		gd->bd->bi_dram[bank].size = optee_start -gd->bd->bi_dram[bank].start;
+		
 		if ((optee_start + optee_size) < (PHYS_SDRAM + bank_1_size)) {
+
+			gd->bd->bi_dram[bank].size = optee_start -
+			       	gd->bd->bi_dram[bank].start;
+
 			if ( ++bank >= CONFIG_NR_DRAM_BANKS) {
 				puts("CONFIG_NR_DRAM_BANKS is not enough\n");
 				return -1;
 			}
 
-			gd->bd->bi_dram[bank].start = optee_start + optee_size;
+			gd->bd->bi_dram[bank].start = optee_start;
 			gd->bd->bi_dram[bank].size = PHYS_SDRAM +
 				bank_1_size - gd->bd->bi_dram[bank].start;
 		}
+		else {
+			printf("%s: There is no room to allocate TEE 0x%16.16llx @ 0x%16.16llx\n", __func__, optee_size, optee_start);
+		}
+
 	} else {
 		gd->bd->bi_dram[bank].size = bank_1_size;
 	}
@@ -245,7 +252,9 @@ int dram_init_banksize(void)
 		}
 		gd->bd->bi_dram[bank].start = PHYS_SDRAM_2;
 		gd->bd->bi_dram[bank].size = bank_2_size;
+	printf("%s:%i %lu %llu [%i] %llu\n", __func__, __LINE__, gd->bd->bi_dram[bank].start, gd->bd->bi_dram[bank].size, bank, total_size);
 	}
+	printf("%s:%i %lu %llu [%i] %llu\n", __func__, __LINE__, gd->bd->bi_dram[bank].start, gd->bd->bi_dram[bank].size, bank, total_size);
 	return 0;
 }
 

@@ -13,6 +13,7 @@
 #include <asm/arch/clock.h>
 #include <asm/mach-imx/gpio.h>
 #include "ddr.h"
+#include "../ucm-imx8m-mini.h"
 
 /* Forward declarations */
 u32 cl_eeprom_get_ddrinfo(void);
@@ -59,13 +60,6 @@ struct lpddr4_desc {
 	char *desc[4];
 };
 
-struct lpddr4_tcm_desc {
-	unsigned int size;
-	unsigned int sign;
-	unsigned int index;
-	unsigned int count;
-};
-
 #define DEFAULT (('D' << 24) + ('E' << 16 ) + ( 'F' << 8 ) + 'A')
 static const struct lpddr4_desc lpddr4_array[] = {
 	{ .name = "Micron", .id = 0xff020008, .size = 2048, .count = 1, .timing = &ucm_dram_timing_ff020008},
@@ -110,7 +104,6 @@ static void spl_tcm_fini(struct lpddr4_tcm_desc *lpddr4_tcm_desc) {
     lpddr4_tcm_desc->index = 0;
 }
 
-#define SPL_TCM_DATA 0x7e0000
 #define SPL_TCM_INIT spl_tcm_init(lpddr4_tcm_desc)
 #define SPL_TCM_FINI spl_tcm_fini(lpddr4_tcm_desc)
 
@@ -121,7 +114,7 @@ void spl_dram_init(void)
 	unsigned int ddr_found = 0;
 	int i = 0;
 
-	struct lpddr4_tcm_desc *lpddr4_tcm_desc = (struct lpddr4_tcm_desc *) SPL_TCM_DATA;
+	struct lpddr4_tcm_desc *lpddr4_tcm_desc = (struct lpddr4_tcm_desc *) TCM_DATA_CFG;
 
 	if (lpddr4_tcm_desc->sign != DEFAULT) {
 		/* get ddr type from the eeprom if not in tcm scan mode */
