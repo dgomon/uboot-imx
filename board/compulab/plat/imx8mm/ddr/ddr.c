@@ -59,13 +59,6 @@ struct lpddr4_desc {
 	char *desc[4];
 };
 
-struct lpddr4_tcm_desc {
-	unsigned int size;
-	unsigned int sign;
-	unsigned int index;
-	unsigned int count;
-};
-
 #define DEFAULT (('D' << 24) + ('E' << 16 ) + ( 'F' << 8 ) + 'A')
 static const struct lpddr4_desc lpddr4_array[] = {
 	{ .name = "Micron", .id = 0xff020008, .size = 2048, .count = 1, .timing = &ucm_dram_timing_ff020008}, //Only the first timing entry is in use
