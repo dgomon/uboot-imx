@@ -883,8 +883,7 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Test only the first bank */
 	start = gd->bd->bi_dram[0].start;
-	end = start + gd->bd->bi_dram[0].size *
-		MEMTEST_NUMERATOR / MEMTEST_DIVIDER;
+	end = start + gd->bd->bi_dram[0].size / 2;
 
 	if (argc > 1)
 		if (strict_strtoul(argv[1], 16, &start) < 0)
