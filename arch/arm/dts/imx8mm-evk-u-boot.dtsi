@@ -52,7 +52,7 @@
 	bootph-pre-ram;
 };
 
-&pinctrl_uart2 {
+&pinctrl_uart3 {
 	bootph-pre-ram;
 };
 
@@ -88,7 +88,7 @@
 	bootph-pre-ram;
 };
 
-&uart2 {
+&uart3 {
 	bootph-pre-ram;
 };
 
@@ -174,7 +174,6 @@
 
 &usbotg1 {
 	status = "okay";
-	extcon = <&ptn5110>;
 };
 
 &mipi_dsi {

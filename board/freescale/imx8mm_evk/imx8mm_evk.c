@@ -27,8 +27,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
 static iomux_v3_cfg_t const uart_pads[] = {
-	IMX8MM_PAD_UART2_RXD_UART2_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MM_PAD_UART2_TXD_UART2_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	IMX8MM_PAD_UART3_RXD_UART3_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	IMX8MM_PAD_UART3_TXD_UART3_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
 static iomux_v3_cfg_t const wdog_pads[] = {
@@ -96,7 +96,7 @@ int board_early_init_f(void)
 
 	imx_iomux_v3_setup_multiple_pads(uart_pads, ARRAY_SIZE(uart_pads));
 
-	init_uart_clk(1);
+	init_uart_clk(2);
 
 #ifdef CONFIG_NAND_MXS
 	setup_gpmi_nand(); /* SPL will call the board_early_init_f */
@@ -218,35 +218,6 @@ struct tcpc_port_config port2_config = {
 	.switch_setup_func = &pd_switch_snk_enable,
 };
 
-static int setup_typec(void)
-{
-	int ret;
-
-	debug("tcpc_init port 2\n");
-	ret = tcpc_init(&port2, port2_config, NULL);
-	if (ret) {
-		printf("%s: tcpc port2 init failed, err=%d\n",
-		       __func__, ret);
-	} else if (tcpc_pd_sink_check_charging(&port2)) {
-		/* Disable PD for USB1, since USB2 has priority */
-		port1_config.disable_pd = true;
-		printf("Power supply on USB2\n");
-	}
-
-	debug("tcpc_init port 1\n");
-	ret = tcpc_init(&port1, port1_config, NULL);
-	if (ret) {
-		printf("%s: tcpc port1 init failed, err=%d\n",
-		       __func__, ret);
-	} else {
-		if (!port1_config.disable_pd)
-			printf("Power supply on USB1\n");
-		return ret;
-	}
-
-	return ret;
-}
-
 int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
@@ -261,11 +232,6 @@ int board_usb_init(int index, enum usb_init_type init)
 
 	imx8m_usb_power(index, true);
 
-	if (init == USB_INIT_HOST)
-		tcpc_setup_dfp_mode(port_ptr);
-	else
-		tcpc_setup_ufp_mode(port_ptr);
-
 	return ret;
 }
 
@@ -275,13 +241,6 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 
 	debug("board_usb_cleanup %d, type %d\n", index, init);
 
-	if (init == USB_INIT_HOST) {
-		if (index == 0)
-			ret = tcpc_disable_src_vbus(&port1);
-		else
-			ret = tcpc_disable_src_vbus(&port2);
-	}
-
 	imx8m_usb_power(index, false);
 	return ret;
 }
@@ -289,34 +248,17 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 int board_ehci_usb_phy_mode(struct udevice *dev)
 {
 	int ret = 0;
-	enum typec_cc_polarity pol;
-	enum typec_cc_state state;
-	struct tcpc_port *port_ptr;
 
 	if (dev_seq(dev) == 0)
-		port_ptr = &port1;
-	else
-		port_ptr = &port2;
+		return USB_INIT_DEVICE;
 
-	tcpc_setup_ufp_mode(port_ptr);
-
-	ret = tcpc_get_cc_status(port_ptr, &pol, &state);
-	if (!ret) {
-		if (state == TYPEC_STATE_SRC_RD_RA || state == TYPEC_STATE_SRC_RD)
-			return USB_INIT_HOST;
-	}
-
-	return USB_INIT_DEVICE;
+	return USB_INIT_HOST;
 }
 
 #endif
 
 int board_init(void)
 {
-#ifdef CONFIG_USB_TCPC
-	setup_typec();
-#endif
-
 	if (IS_ENABLED(CONFIG_FEC_MXC))
 		setup_fec();
 
