@@ -271,4 +271,6 @@ static inline void fdt_fixup_esdhc(void *blob, struct bd_info *bd) {}
 void __noreturn mmc_boot(void);
 void mmc_spl_load_image(uint32_t offs, unsigned int size, void *vdst);
 
+#define CFG_SYS_FSL_ESDHC_ADDR      0
+
 #endif  /* __FSL_ESDHC_IMX_H__ */
