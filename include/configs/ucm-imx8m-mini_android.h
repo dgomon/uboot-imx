@@ -7,9 +7,7 @@
 #ifndef IMX8MM_EVK_ANDROID_H
 #define IMX8MM_EVK_ANDROID_H
 
-#define CONFIG_ANDROID_AB_SUPPORT
 #ifdef CONFIG_ANDROID_AB_SUPPORT
-#define CONFIG_SYSTEM_RAMDISK_SUPPORT
 #endif
 #define FSL_FASTBOOT_FB_DEV "mmc"
 
@@ -21,13 +19,6 @@
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #undef CONFIG_BOOTCOMMAND
 
-#define CFG_EXTRA_ENV_SETTINGS		\
-	"splashpos=m,m\0"			\
-	"splashimage=0x50000000\0"		\
-	"fdt_high=0xffffffffffffffff\0"		\
-	"initrd_high=0xffffffffffffffff\0"	\
-	"console=ttymxc2,115200 earlycon=ec_imx6q,0x30880000,115200\0" \
-	"bootargs=console=ttymxc2,115200 earlycon=ec_imx6q,0x30880000,115200 ubi.mtd=nandrootfs "  \
 
 /* Enable mcu firmware flash */
 #ifdef CONFIG_FLASH_MCUFIRMWARE_SUPPORT
