@@ -5,6 +5,7 @@
  */
 
 #include <common.h>
+#include <efi_loader.h>
 #include <malloc.h>
 #include <errno.h>
 #include <asm/io.h>
@@ -29,6 +30,26 @@
 #include "../common/eeprom.h"
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#if CONFIG_IS_ENABLED(EFI_HAVE_CAPSULE_SUPPORT)
+
+struct efi_fw_image fw_images[] = {
+	{
+		.image_type_id = IMX_BOOT_IMAGE_GUID,
+		.fw_name = u"IMX8MM-MINI-RAW",
+		.image_index = 1,
+	},
+};
+
+
+struct efi_capsule_update_info update_info = {
+	.dfu_string = "mmc 2=flash-bin raw 0x42 0x2000 mmcpart 1",
+	.num_images = ARRAY_SIZE(fw_images),
+	.images = fw_images,
+};
+
+#endif /* EFI_HAVE_CAPSULE_SUPPORT */
+
 
 #define ENV_FDT_FILE "fdt_file"
 #define TYPE_2L_OPT "WBM" //Wi/Fi module is LBES5PL2EL by Murata, PCB rev 1.4
