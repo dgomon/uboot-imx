@@ -7,34 +7,29 @@
 #ifndef IMX8MM_EVK_ANDROID_H
 #define IMX8MM_EVK_ANDROID_H
 
-#ifdef CONFIG_ANDROID_AB_SUPPORT
-#endif
 #define FSL_FASTBOOT_FB_DEV "mmc"
 
-#ifdef CONFIG_SYS_MALLOC_LEN
-#undef CONFIG_SYS_MALLOC_LEN
-#define CONFIG_SYS_MALLOC_LEN           (64 * SZ_1M)
-#endif
-
-#undef CONFIG_EXTRA_ENV_SETTINGS
+#undef CFG_EXTRA_ENV_SETTINGS
 #undef CONFIG_BOOTCOMMAND
 
+#define CFG_EXTRA_ENV_SETTINGS		\
+	"splashpos=m,m\0"			\
+	"splashimage=0x50000000\0"		\
+	"fdt_high=0xffffffffffffffff\0"		\
+	"initrd_high=0xffffffffffffffff\0"	\
+	"emmc_dev=2\0"\
+	"sd_dev=1\0" \
 
 /* Enable mcu firmware flash */
 #ifdef CONFIG_FLASH_MCUFIRMWARE_SUPPORT
 #define ANDROID_MCU_FRIMWARE_DEV_TYPE DEV_MMC
 #define ANDROID_MCU_FIRMWARE_START 0x500000
 #define ANDROID_MCU_OS_PARTITION_SIZE 0x40000
-#define ANDROID_MCU_FIRMWARE_SIZE  0x40000
+#define ANDROID_MCU_FIRMWARE_SIZE  0x20000
 #define ANDROID_MCU_FIRMWARE_HEADER_STACK 0x20020000
 #endif
 
-#if !defined(CONFIG_IMX_TRUSTY_OS) || !defined(CONFIG_DUAL_BOOTLOADER)
-#undef CONFIG_FSL_CAAM_KB
-#endif
-
-#ifdef CONFIG_DUAL_BOOTLOADER
-#define CONFIG_SYS_SPL_PTE_RAM_BASE    0x41580000
+#define CFG_SYS_SPL_PTE_RAM_BASE    0x41580000
 
 #ifdef CONFIG_IMX_TRUSTY_OS
 #define BOOTLOADER_RBIDX_OFFSET  0x3FE000
@@ -43,17 +38,16 @@
 #define BOOTLOADER_RBIDX_INITVAL 0
 #endif
 
-#endif
-
 #ifdef CONFIG_IMX_TRUSTY_OS
 #define AVB_RPMB
 #define KEYSLOT_HWPARTITION_ID 2
 #define KEYSLOT_BLKS             0x1FFF
 #define NS_ARCH_ARM64 1
+
 #endif
 
-/* Enable CONFIG_ANDROID_LOW_MEMORY to config 1GB ddr */
-#ifdef  CONFIG_ANDROID_LOW_MEMORY
+/* Enable CONFIG_IMX8M_1G_MEMORY  to config 1GB ddr */
+#ifdef CONFIG_IMX8M_1G_MEMORY
 #undef  PHYS_SDRAM_SIZE
 #define PHYS_SDRAM_SIZE 0x40000000 /* 1GB DDR */
 #endif
