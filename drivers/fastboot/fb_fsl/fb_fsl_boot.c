@@ -681,40 +681,48 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 		is_recovery_mode =
 			(strncmp(argv[1], "recovery", sizeof("recovery")) != 0) ? false: true;
 		if (is_recovery_mode)
-			printf("Will boot from recovery!\n");
+			printf("do_boota: Will boot from recovery!\n");
 	}
 
 	/* check lock state */
 	FbLockState lock_status = fastboot_get_lock_stat();
 	if (lock_status == FASTBOOT_LOCK_ERROR) {
-		printf("In boota get fastboot lock status error. Set lock status\n");
+		printf("do_boota: In boota get fastboot lock status error. Set lock status\n");
 		fastboot_set_lock_stat(FASTBOOT_LOCK);
 		lock_status = FASTBOOT_LOCK;
 	}
 
 	bool allow_fail = (lock_status == FASTBOOT_UNLOCK ? true : false);
+	printf("do_boota: allow_fail: %d\n", allow_fail);
 	avb_metric = get_timer(0);
 
 	/*
 	 * Vendor_boot partition will be present starting from boot header version 3.
 	 */
 	boot_header_version = get_boot_header_version();
+	printf("do_boota: boot_header_version: %d\n", boot_header_version);
 	if (boot_header_version < 0 || boot_header_version > 4) {
-		printf("boot header version not supported!\n");
+		printf("do_boota: boot header version not supported!\n");
 		goto fail;
 	} else if (boot_header_version < 3) {
 		requested_partitions_boot[2] = NULL;
+		printf("do_boota: setting requested_partitions_boot[2] to null\n");
 	} else if (boot_header_version == 4) {
 		if (fastboot_flash_find_ptn("init_boot_a") == NULL) {
 			with_init_boot = false;
+			printf("do_boota: setting requested_partitions_boot[2] to null\n");
 			requested_partitions_boot[3] = NULL;
-		} else
+		} else {
+		    printf("do_boota: with_init_boot set to true\n");
 			with_init_boot = true;
+		}
 	}
 
 #ifdef CONFIG_AUTO_SET_RPMB_KEY
-	if (trusty_rpmb_init())
+	if (trusty_rpmb_init()) {
+	    printf("do_boota: trusty_rpmb_init set, going to fail\n");
 		goto fail;
+	}
 #endif
 	/* For imx6 on Android, we don't have a/b slot and we want to verify boot/recovery with AVB.
 	 * For imx8 and Android Things we don't have recovery and support a/b slot for boot */
@@ -722,10 +730,11 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	/* We will only verify single one slot which has been selected in SPL */
 	avb_result = avb_flow_dual_uboot(&fsl_avb_ab_ops, requested_partitions_boot, allow_fail,
 			AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE, &avb_out_data);
+	printf("do_boota: avb_flow_dual_uboot returned %d\n", avb_result);
 
 	/* Reboot if current slot is not bootable. */
 	if (avb_result == AVB_AB_FLOW_RESULT_ERROR_NO_BOOTABLE_SLOTS) {
-		printf("boota: slot verify fail!\n");
+		printf("do_boota: boota: slot verify fail!\n");
 		do_reset(NULL, 0, 0, NULL);
 	}
 #else /* CONFIG_DUAL_BOOTLOADER */
@@ -733,14 +742,17 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	/* we can use avb to verify Trusty if we want */
 	avb_result = avb_ab_flow_fast(&fsl_avb_ab_ops, requested_partitions_boot, allow_fail,
 			AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE, &avb_out_data);
+	printf("do_boota: avb_ab_flow_fast returned %d\n", avb_result);
 #else /* CONFIG_ANDROID_AB_SUPPORT */
 	/* For imx6/7 devices. */
 	if (is_recovery_mode) {
 		avb_result = avb_single_flow(&fsl_avb_ab_ops, requested_partitions_recovery, allow_fail,
 				AVB_HASHTREE_ERROR_MODE_RESTART, &avb_out_data);
+		printf("do_boota: avb_single_flow 1 returned %d\n", avb_result);
 	} else {
 		avb_result = avb_single_flow(&fsl_avb_ab_ops, requested_partitions_boot, allow_fail,
 				AVB_HASHTREE_ERROR_MODE_RESTART, &avb_out_data);
+		printf("do_boota: avb_single_flow 2 returned %d\n", avb_result);
 	}
 #endif /* CONFIG_ANDROID_AB_SUPPORT */
 #endif /* CONFIG_DUAL_BOOTLOADER */
@@ -751,32 +763,66 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	/* Parse the avb data */
 	if ((avb_result == AVB_AB_FLOW_RESULT_OK) ||
 			(avb_result == AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR)) {
-		if (avb_out_data == NULL)
+
+		if (avb_out_data == NULL) {
+		    printf("do_boota: avb_out_data is NULL, going to fail\n");
 			goto fail;
+		} else {
+		    printf("do_boota: avb_out_data is not NULL\n");
+		}
+
 		/* We may have more than one partition loaded by AVB, find the boot partition first.*/
 #ifdef CONFIG_SYSTEM_RAMDISK_SUPPORT
-		if (find_partition_data_by_name("boot", avb_out_data, &avb_loadpart))
+        printf("do_boota: CONFIG_SYSTEM_RAMDISK_SUPPORT is set\n");
+		if (find_partition_data_by_name("boot", avb_out_data, &avb_loadpart)) {
+		    printf("do_boota: find_partition_data_by_name(\"boot\") failed, failing\n");
 			goto fail;
+		}
+		else {
+		    printf("do_boota: find_partition_data_by_name returned zero, OK\n");
+		}
 		if ((boot_header_version >= 3) &&
-			find_partition_data_by_name("vendor_boot", avb_out_data, &avb_vendorboot))
+			find_partition_data_by_name("vendor_boot", avb_out_data, &avb_vendorboot)) {
+			printf("do_boota: boot_header_version >= 3 and find_partition_data_by_name(\"vendor_boot\") failed, failing\n");
 			goto fail;
+		}
+		else {
+		    printf("do_boota: OK 1\n");
+		}
 		if (with_init_boot &&
-			find_partition_data_by_name("init_boot", avb_out_data, &avb_initboot))
+			find_partition_data_by_name("init_boot", avb_out_data, &avb_initboot)) {
+			printf("do_boota: with_init_boot and find_partition_data_by_name(\"init_boot\") failed, failing\n");
 			goto fail;
+		}
+		else {
+		    printf("do_boota: OK 2\n");
+		}
 #else
+        printf("do_boota: CONFIG_SYSTEM_RAMDISK_SUPPORT is not set\n");
 		if (is_recovery_mode) {
-			if (find_partition_data_by_name("recovery", avb_out_data, &avb_loadpart))
+		    printf("do_boota: is_recovery_mode is true\n");
+			if (find_partition_data_by_name("recovery", avb_out_data, &avb_loadpart)) {
+			    printf("do_boota: find_partition_data_by_name(\"recovery\") failed, going to fail\n");
 				goto fail;
+			} else {
+			    printf("do_boota: find_partition_data_by_name OK\n");
+			}
 		} else {
-			if (find_partition_data_by_name("boot", avb_out_data, &avb_loadpart))
+		    printf("do_boota: is_recovery_mode is false\n");
+			if (find_partition_data_by_name("boot", avb_out_data, &avb_loadpart)) {
+			    printf("do_boota: find_partition_data_by_name(\"boot\") failed, going to fail\n");
 				goto fail;
+			}
 		}
 #endif
 
+        printf("do_boota: asserting avb_loadpart != NULL\n");
 		assert(avb_loadpart != NULL);
+		printf("do_boota: asserted avb_loadpart != NULL\n");
 
 		/* boot image is already read by avb */
 		if (boot_header_version == 4) {
+		    printf("do_boota: boot_header_version == 4\n");
 			assert(avb_vendorboot != NULL);
 			hdr_v4 = (struct boot_img_hdr_v4 *)avb_loadpart->data;
 			vendor_boot_hdr_v4 = (struct vendor_boot_img_hdr_v4 *)avb_vendorboot->data;
@@ -784,31 +830,33 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 				init_boot_hdr_v4 = (struct boot_img_hdr_v4 *)avb_initboot->data;
 			/* check the header magic, same for boot header v3 and v4 */
 			if (android_image_check_header_v3(hdr_v4->magic, vendor_boot_hdr_v4->magic)) {
-				printf("boota: bad boot/vendor_boot image magic\n");
+				printf("do_boota: boota: bad boot/vendor_boot image magic\n");
 				goto fail;
 			}
 		} else if (boot_header_version == 3) {
+		    printf("do_boota: boot_header_version == 3\n");
 			assert(avb_vendorboot != NULL);
 			hdr_v3 = (struct boot_img_hdr_v3 *)avb_loadpart->data;
 			vendor_boot_hdr_v3 = (struct vendor_boot_img_hdr_v3 *)avb_vendorboot->data;
 			if (android_image_check_header_v3(hdr_v3->magic, vendor_boot_hdr_v3->magic)) {
-				printf("boota: bad boot/vendor_boot image magic\n");
+				printf("do_boota: boota: bad boot/vendor_boot image magic\n");
 				goto fail;
 			}
 		} else {
+		    printf("do_boota: boot_header_version is other\n");
 			hdr = (struct andr_boot_img_hdr_v0 *)avb_loadpart->data;
 			if (is_android_boot_image_header((void *)hdr)) {
-				printf("boota: bad boot image magic\n");
+				printf("do_boota: boota: bad boot image magic\n");
 				goto fail;
 			}
 		}
 
 		if (avb_result == AVB_AB_FLOW_RESULT_OK)
-			printf(" verify OK, boot '%s%s'\n",
+			printf("do_boota:  verify OK, boot '%s%s'\n",
 					avb_loadpart->partition_name, avb_out_data->ab_suffix);
 		else {
-			printf(" verify FAIL, state: UNLOCK\n");
-			printf(" boot '%s%s' still\n",
+			printf("do_boota:  verify FAIL, state: UNLOCK\n");
+			printf("do_boota:  boot '%s%s' still\n",
 					avb_loadpart->partition_name, avb_out_data->ab_suffix);
 		}
 		char bootargs_sec[ANDR_BOOT_EXTRA_ARGS_SIZE];
@@ -844,7 +892,7 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 		 * or verify fail in lock state.
 		 */
 		if (lock_status == FASTBOOT_LOCK)
-			printf(" verify FAIL, state: LOCK\n");
+			printf("do_boota:  verify FAIL, state: LOCK\n");
 
 		goto fail;
 	}
@@ -873,11 +921,11 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 			size_t lz4_len = MAX_KERNEL_LEN;
 			if (ulz4fn((void *)((ulong)hdr_v4 + 4096),
 				hdr_v4->kernel_size, (void *)kernel_addr, &lz4_len) != 0) {
-				printf("Decompress kernel fail!\n");
+				printf("do_boota: Decompress kernel fail!\n");
 				goto fail;
 			}
 		} else {
-			printf("Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
+			printf("do_boota: Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
 			goto fail;
 		}
 		kernel_image_size = kernel_size((void *)kernel_addr);
@@ -889,11 +937,11 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 			size_t lz4_len = MAX_KERNEL_LEN;
 			if (ulz4fn((void *)((ulong)hdr_v3 + 4096),
 				hdr_v3->kernel_size, (void *)kernel_addr, &lz4_len) != 0) {
-				printf("Decompress kernel fail!\n");
+				printf("do_boota: Decompress kernel fail!\n");
 				goto fail;
 			}
 		} else {
-			printf("Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
+			printf("do_boota: Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
 			goto fail;
 		}
 		kernel_image_size = kernel_size((void *)kernel_addr);
@@ -906,11 +954,11 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 			size_t lz4_len = MAX_KERNEL_LEN;
 			if (ulz4fn((void *)((ulong)hdr + hdr->page_size),
 				hdr->kernel_size, (void *)kernel_addr, &lz4_len) != 0) {
-				printf("Decompress kernel fail!\n");
+				printf("do_boota: Decompress kernel fail!\n");
 				goto fail;
 			}
 		} else {
-			printf("Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
+			printf("do_boota: Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
 			goto fail;
 		}
 
@@ -952,7 +1000,7 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	/* recovery.img include dts while boot.img use dtbo */
 	if (is_recovery_mode) {
 		if (hdr->header_version != 1) {
-			printf("boota: boot image header version error!\n");
+			printf("do_boota: boota: boot image header version error!\n");
 			goto fail;
 		}
 
@@ -969,11 +1017,11 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 #endif
 
 	if (be32_to_cpu(dt_img->magic) != DT_TABLE_MAGIC) {
-		printf("boota: bad dt table magic %08x\n",
+		printf("do_boota: boota: bad dt table magic %08x\n",
 				be32_to_cpu(dt_img->magic));
 		goto fail;
 	} else if (!be32_to_cpu(dt_img->dt_entry_count)) {
-		printf("boota: no dt entries\n");
+		printf("do_boota: boota: no dt entries\n");
 		goto fail;
 	}
 
@@ -994,8 +1042,8 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	if ((ramdisk_addr >= kernel_addr) && (ramdisk_addr < ALIGN(fdt_addr + fdt_size, 4096))) {
 		ulong ramdisk_addr_relocate = (ulong)ALIGN(fdt_addr + fdt_size, 4096);
 
-		printf("boota: ramdisk overlap detected!!! ");
-		printf("redirecting ramdisk from 0x%08x to 0x%08x\n", (uint32_t)ramdisk_addr, (uint32_t)ramdisk_addr_relocate);
+		printf("do_boota: boota: ramdisk overlap detected!!! ");
+		printf("do_boota: redirecting ramdisk from 0x%08x to 0x%08x\n", (uint32_t)ramdisk_addr, (uint32_t)ramdisk_addr_relocate);
 
 		/* relocate ramdisk*/
 		ramdisk_addr = ramdisk_addr_relocate;
@@ -1036,7 +1084,7 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 		if (append_runtime_bootconfig(bootconfig_start +
 						vendor_boot_hdr_v4->bootconfig_size,
 						&bootconfig_size, (void *)(ulong)fdt_addr) < 0) {
-			printf("boota: append runtime bootconfig failed!\n");
+			printf("do_boota: boota: append runtime bootconfig failed!\n");
 			goto fail;
 		}
 		bootconfig_size += vendor_boot_hdr_v4->bootconfig_size;
@@ -1082,10 +1130,10 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	}
 
 	/* Dump image info */
-	printf("kernel   @ %08x (%d)\n", (uint32_t)kernel_addr, kernel_image_size);
-	printf("ramdisk  @ %08x (%d)\n", (uint32_t)ramdisk_addr, ramdisk_size);
+	printf("do_boota: kernel   @ %08x (%d)\n", (uint32_t)kernel_addr, kernel_image_size);
+	printf("do_boota: ramdisk  @ %08x (%d)\n", (uint32_t)ramdisk_addr, ramdisk_size);
 	if (fdt_size)
-		printf("fdt      @ %08x (%d)\n", fdt_addr, fdt_size);
+		printf("do_boota: fdt      @ %08x (%d)\n", fdt_addr, fdt_size);
 
 	/* Set boot parameters */
 	char boot_addr_start[12];
@@ -1113,9 +1161,9 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	if (fastboot_get_lock_stat() == FASTBOOT_UNLOCK) {
 		int count = 0;
 
-		printf("Device is unlocked, press power key to skip warning logo... \n");
+		printf("do_boota: Device is unlocked, press power key to skip warning logo... \n");
 		if (display_unlock_warning())
-			printf("can't show unlock warning.\n");
+			printf("do_boota: can't show unlock warning.\n");
 		while ( (count < 10 * CONFIG_AVB_WARNING_TIME_LAST) && !is_power_key_pressed()) {
 			mdelay(100);
 			count++;
@@ -1148,7 +1196,7 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
          * encrypted boot stage has passed.
          */
         if(run_command("set_priblob_bitfield", 0)){
-                printf("set priblob bitfield failed!\n");
+                printf("do_boota: set priblob bitfield failed!\n");
         }
 
 #endif

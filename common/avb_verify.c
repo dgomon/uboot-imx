@@ -12,6 +12,8 @@
 #include <tee.h>
 #include <tee/optee_ta_avb.h>
 
+#define LOG_DEBUG
+
 static const unsigned char avb_root_pub[1032] = {
 	0x0, 0x0, 0x10, 0x0, 0x55, 0xd9, 0x4, 0xad, 0xd8, 0x4,
 	0xaf, 0xe3, 0xd3, 0x84, 0x6c, 0x7e, 0xd, 0x89, 0x3d, 0xc2,
@@ -895,14 +897,25 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
 {
 	struct mmc_part *part;
 
-	if (!out_size_num_bytes)
+    debug("%s: getting size of %s\n", __func__, partition);
+
+	if (!out_size_num_bytes) {
+		debug("%s: returning AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE\n", __func__);
 		return AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE;
+	}
 
 	part = get_partition(ops, partition);
-	if (!part)
+	if (!part) {
+		debug("%s: partition %s not found\n", __func__, partition);
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+	}
+
+	debug("%s: partition found. name=%s, type=%s, start=%llu, size=%llu, blksz=%llu\n",
+		__func__, part->info.name, part->info.type, part->info.start, part->info.size, part->info.blksz);
 
 	*out_size_num_bytes = part->info.blksz * part->info.size;
+
+	debug("%s: setting out_size_num_bytes to %llu\n", __func__, *out_size_num_bytes);
 
 	return AVB_IO_RESULT_OK;
 }

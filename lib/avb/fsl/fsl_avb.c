@@ -403,13 +403,23 @@ AvbIOResult fsl_get_size_of_partition(AvbOps* ops,
 		uint64_t* out_size_num_bytes)
 {
 	struct fastboot_ptentry *pte;
+	printf("FGSOP: looking up partition %s\n", partition);
 	pte = fastboot_flash_find_ptn(partition);
+
 	if (!pte) {
 		ERR("no %s partition\n", partition);
 		fastboot_flash_dump_ptn();
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 	}
+
+	printf("FGSOP: name=%s, start=%d, length=%llu\n", 
+		pte->name, pte->start, pte->length);
+	printf("FGSOP:   flags=0x%x, partition_id=%u, partition_index=%d, fstype=%s\n",
+		pte->flags, pte->partition_id, pte->partition_index, pte->fstype);
+
 	*out_size_num_bytes = (uint64_t)(pte->length) * 512;
+
+	printf("FGSOP: size=%llu\n", *out_size_num_bytes);
 	return AVB_IO_RESULT_OK;
 }
 
