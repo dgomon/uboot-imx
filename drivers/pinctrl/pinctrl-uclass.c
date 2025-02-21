@@ -60,28 +60,41 @@ static int pinctrl_select_state_full(struct udevice *dev, const char *statename)
 	int state, size, i, ret;
 
 	state = dev_read_stringlist_search(dev, "pinctrl-names", statename);
+	printf("pinctrl_select_state_full: enter, dev->name=%s, statename='%s', state=%d\n", dev->name, statename, state);
 	if (state < 0) {
+	    printf("pinctrl_select_state_full: dev_read_stringlist_search returned %d\n", state);
 		char *end;
 		/*
 		 * If statename is not found in "pinctrl-names",
 		 * assume statename is just the integer state ID.
 		 */
 		state = simple_strtoul(statename, &end, 10);
-		if (*end)
+		printf("pinctrl_select_state_full: simple_strtoul returned %s\n", end);
+		if (*end) {
+		    printf("pinctrl_select_state_full: returning -EINVAL\n");
 			return -EINVAL;
+		}
 	}
+	printf("pinctrl_select_state_full: Resolved state = %d\n", state);
 
 	snprintf(propname, sizeof(propname), "pinctrl-%d", state);
+	printf("pinctrl_select_state_full: Constructed property name '%s'\n", propname);
+
 	list = dev_read_prop(dev, propname, &size);
 	if (!list)
 		return -EINVAL;
 
+	printf("pinctrl_select_state_full: Found property '%s' with size %d bytes\n", propname, size);
 	size /= sizeof(*list);
+	printf("pinctrl_select_state_full: Number of entries = %d\n", size);
+
 	for (i = 0; i < size; i++) {
 		phandle = fdt32_to_cpu(*list++);
+		printf("pinctrl_select_state_full: Processing entry %d, phandle = %u\n", i, phandle);
 		ret = uclass_get_device_by_phandle_id(UCLASS_PINCONFIG, phandle,
 						      &config);
 		if (ret) {
+			printf("pinctrl_select_state_full: uclass_get_device_by_phandle_id failed for phandle %u, err=%d\n", phandle, ret);
 			dev_warn(dev, "%s: uclass_get_device_by_phandle_id: err=%d\n",
 				__func__, ret);
 			continue;
@@ -89,12 +102,15 @@ static int pinctrl_select_state_full(struct udevice *dev, const char *statename)
 
 		ret = pinctrl_config_one(config);
 		if (ret) {
+			printf("pinctrl_select_state_full: pinctrl_config_one failed for device, err=%d\n", ret);
 			dev_warn(dev, "%s: pinctrl_config_one: err=%d\n",
 				__func__, ret);
 			continue;
 		}
+		printf("pinctrl_select_state_full: Successfully configured pinctrl for entry %d\n", i);
 	}
 
+	printf("pinctrl_select_state_full: Exiting successfully\n");
 	return 0;
 }
 
@@ -301,19 +317,25 @@ static int pinctrl_select_state_simple(struct udevice *dev)
 
 int pinctrl_select_state(struct udevice *dev, const char *statename)
 {
+	printf("pinctrl_select_state: enter, dev->name=%s, statename=%s\n", dev->name, statename);
 	/*
 	 * Some device which is logical like mmc.blk, do not have
 	 * a valid ofnode.
 	 */
-	if (!ofnode_valid(dev->node))
+	if (!ofnode_valid(dev->node)) {
+	    printf("pinctrl_select_state: device has no valid ofnode, returning 0\n");
 		return 0;
+	}
 	/*
 	 * Try full-implemented pinctrl first.
 	 * If it fails or is not implemented, try simple one.
 	 */
-	if (pinctrl_select_state_full(dev, statename))
+	if (pinctrl_select_state_full(dev, statename)) {
+	    printf("pinctrl_select_state: using simple pinctrl\n");
 		return pinctrl_select_state_simple(dev);
+	}
 
+    printf("pinctrl_select_state: returning 0\n");
 	return 0;
 }
 

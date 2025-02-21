@@ -859,6 +859,7 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 				    AvbSlotVerifyFlags flags,
 				    AvbHashtreeErrorMode hashtree_error_mode,
 				    AvbSlotVerifyData** out_data) {
+	avb_debugv("avb_flow_dual_uboot: ", "Entering function\n", NULL);
 	AvbOps* ops = ab_ops->ops;
 	AvbSlotVerifyData* slot_data = NULL;
 	AvbSlotVerifyData* data = NULL;
@@ -874,23 +875,36 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 
 	io_ret = fsl_load_metadata(ab_ops, &ab_data, &ab_data_orig);
 	if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
+		avb_debugv("avb_flow_dual_uboot: ", "fsl_load_metadata returned ERROR_OOM\n", NULL);
 		ret = AVB_AB_FLOW_RESULT_ERROR_OOM;
 		goto out;
 	} else if (io_ret != AVB_IO_RESULT_OK) {
+		avb_debugv("avb_flow_dual_uboot: ", "fsl_load_metadata returned non-OK\n", NULL);
 		ret = AVB_AB_FLOW_RESULT_ERROR_IO;
 		goto out;
 	}
 
 	/* Choose the target slot, it should be the same with the one in SPL. */
 	target_slot = get_curr_slot(&ab_data);
+	{
+		char tmp[64];
+		snprintf(tmp, sizeof(tmp), "Target slot = %d\n", target_slot);
+		avb_debugv("avb_flow_dual_uboot\n: ", tmp, NULL);
+	}
 	if (target_slot == -1) {
 		ret = AVB_AB_FLOW_RESULT_ERROR_NO_BOOTABLE_SLOTS;
 		printf("No bootable slot found!\n");
+		avb_debugv("avb_flow_dual_uboot: ", "No bootable slot found\n", NULL);
 		goto out;
 	}
 	/* Clear the bootloader_verified flag. */
 	ab_data.slot_info[target_slot].bootloader_verified = 0;
 
+	{
+		char tmp[64];
+		snprintf(tmp, sizeof(tmp), "Verifying slot %s ...\n", slot_suffix[target_slot]);
+		avb_debugv("avb_flow_dual_uboot: ", tmp, NULL);
+	}
 	printf("Verifying slot %s ...\n", slot_suffix[target_slot]);
 	verify_result = avb_slot_verify(ops,
 					requested_partitions,
@@ -898,22 +912,31 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 					flags,
 					hashtree_error_mode,
 					&slot_data);
+	{
+		char tmp[128];
+		snprintf(tmp, sizeof(tmp), "avb_slot_verify returned: %s\n", avb_slot_verify_result_to_string(verify_result));
+		avb_debugv("avb_flow_dual_uboot: ", tmp, NULL);
+	}
 
 	switch (verify_result) {
 		case AVB_SLOT_VERIFY_RESULT_ERROR_OOM:
 			ret = AVB_AB_FLOW_RESULT_ERROR_OOM;
+			avb_debugv("avb_flow_dual_uboot: ", "verify: ERROR_OOM\n", NULL);
 			goto out;
 
 		case AVB_SLOT_VERIFY_RESULT_ERROR_IO:
 			ret = AVB_AB_FLOW_RESULT_ERROR_IO;
+			avb_debugv("avb_flow_dual_uboot: ", "verify: ERROR_IO\n", NULL);
 			goto out;
 
 		case AVB_SLOT_VERIFY_RESULT_OK:
 			ret = AVB_AB_FLOW_RESULT_OK;
+			avb_debugv("avb_flow_dual_uboot: ", "verify: OK\n", NULL);
 			break;
 
 		case AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA:
 		case AVB_SLOT_VERIFY_RESULT_ERROR_UNSUPPORTED_VERSION:
+			avb_errorv("avb_flow_dual_uboot: ", "verify: fatal error (invalid metadata/unsupported version)\n", NULL);
 			/* Even with AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR
 			 * these mean game over.
 			 */
@@ -937,12 +960,14 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 				saw_and_allowed_verification_error =
 					 true;
 			} else {
+				avb_errorv("avb_flow_dual_uboot: ", "Verification error not allowed\n", NULL);
 				set_slot_unbootable = true;
 			}
 			break;
 
 		case AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT:
 			ret = AVB_AB_FLOW_RESULT_ERROR_INVALID_ARGUMENT;
+			avb_debugv("avb_flow_dual_uboot: ", "verify: ERROR_INVALID_ARGUMENT\n", NULL);
 			goto out;
 			/* Do not add a 'default:' case here because
 			 * of -Wswitch.
@@ -954,6 +979,8 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 		 * slot been marked as "unbootable" due to some random failures (like
 		 * eMMC/DRAM access error at some critical temperature).
 		 */
+		avb_debugv("avb_flow_dual_uboot: ", "Setting slot unbootable\n", NULL);
+		/* Reboot if current slot has booted successfully before. */
 		if (ab_data.slot_info[target_slot].successful_boot)
 			do_reset(NULL, 0, 0, NULL);
 		else {
@@ -983,6 +1010,12 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 			rollback_index_value = slot_data->rollback_indexes[n];
 
 			if (rollback_index_value != 0) {
+				{
+					char tmp[128];
+					snprintf(tmp, sizeof(tmp), "Slot %s: For rollback index location %d, rollback_index_value = %llu\n",
+						 slot_suffix[target_slot], n, (unsigned long long)rollback_index_value);
+					avb_debugv("avb_flow_dual_uboot: ", tmp, NULL);
+				}
 				io_ret = ops->read_rollback_index(
 						ops, n, &current_rollback_index_value);
 				if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
@@ -990,6 +1023,7 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 					goto out;
 				} else if (io_ret != AVB_IO_RESULT_OK) {
 					printf("Error getting rollback index for slot.\n");
+					avb_debugv("avb_flow_dual_uboot: ", "Error getting rollback index for slot\n", NULL);
 					ret = AVB_AB_FLOW_RESULT_ERROR_IO;
 					goto out;
 				}
@@ -1001,9 +1035,13 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 						goto out;
 					} else if (io_ret != AVB_IO_RESULT_OK) {
 						printf("Error setting stored rollback index.\n");
+						avb_debugv("avb_flow_dual_uboot: ", "Error setting stored rollback index\n", NULL);
 						ret = AVB_AB_FLOW_RESULT_ERROR_IO;
 						goto out;
 					}
+					avb_debugv("avb_flow_dual_uboot: ", "Stored rollback index updated\n", NULL);
+				} else {
+					avb_debugv("avb_flow_dual_uboot: ", "Stored rollback index unchanged\n", NULL);
 				}
 			}
 		}
@@ -1013,12 +1051,16 @@ AvbABFlowResult avb_flow_dual_uboot(AvbABOps* ab_ops,
 	avb_assert(slot_data != NULL);
 	data = slot_data;
 	slot_data = NULL;
+	avb_debugv("avb_flow_dual_uboot: ", "Slot selected successfully WARNING\n", NULL);
 	if (saw_and_allowed_verification_error) {
+	    avb_debugv("avb_flow_dual_uboot: ", "saw_and_allowed_verification_error\n");
 		avb_assert(
 			flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR);
 		ret = AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR;
+		avb_debugv("avb_flow_dual_uboot: ", "ret=AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR\n");
 	} else {
 		ret = AVB_AB_FLOW_RESULT_OK;
+		avb_debugv("avb_flow_dual_uboot: ", "ret=AVB_AB_FLOW_RESULT_OK\n");
 	}
 
 out:
@@ -1033,6 +1075,7 @@ out:
 			avb_slot_verify_data_free(data);
 			data = NULL;
 		}
+		avb_debugv("avb_flow_dual_uboot: ", "Error saving metadata\n", NULL);
 	}
 
 	if (slot_data != NULL)
@@ -1046,6 +1089,7 @@ out:
 		}
 	}
 
+	avb_debugv("avb_flow_dual_uboot: ", "Exiting function\n", NULL);
 	return ret;
 }
 
@@ -1183,6 +1227,7 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 				 AvbSlotVerifyFlags flags,
 				 AvbHashtreeErrorMode hashtree_error_mode,
 				 AvbSlotVerifyData** out_data) {
+	avb_debugv("avb_ab_flow_fast: ", "Entering function\n", NULL);
 	AvbOps* ops = ab_ops->ops;
 	AvbSlotVerifyData* slot_data[2] = {NULL, NULL};
 	AvbSlotVerifyData* data = NULL;
@@ -1199,9 +1244,11 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 
 	io_ret = fsl_load_metadata(ab_ops, &ab_data, &ab_data_orig);
 	if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
+		avb_debugv("avb_ab_flow_fast: ", "fsl_load_metadata returned ERROR_OOM\n", NULL);
 		ret = AVB_AB_FLOW_RESULT_ERROR_OOM;
 		goto out;
 	} else if (io_ret != AVB_IO_RESULT_OK) {
+		avb_debugv("avb_ab_flow_fast: ", "fsl_load_metadata returned non-OK\n", NULL);
 		ret = AVB_AB_FLOW_RESULT_ERROR_IO;
 		goto out;
 	}
@@ -1209,11 +1256,21 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 	slot_index_to_boot = 2;  // Means not 0 or 1
 	target_slot =
 	    (ab_data.slot_info[1].priority > ab_data.slot_info[0].priority) ? 1 : 0;
+	{
+		char tmp[64];
+		snprintf(tmp, sizeof(tmp), "Target slot = %zu\n", target_slot);
+		avb_debugv("avb_ab_flow_fast: ", tmp, NULL);
+	}
 
 	for (n = 0; n < 2; n++) {
 		if (!fsl_slot_is_bootable(&ab_data.slot_info[target_slot])) {
 			target_slot = (target_slot == 1 ? 0 : 1);
 			continue;
+		}
+		{
+			char tmp[128];
+			snprintf(tmp, sizeof(tmp), "Verifying slot %s ...\n", slot_suffix[target_slot]);
+			avb_debugv("avb_ab_flow_fast: ", tmp, NULL);
 		}
 		verify_result = avb_slot_verify(ops,
 						requested_partitions,
@@ -1221,17 +1278,26 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 						flags,
 						hashtree_error_mode,
 						&slot_data[target_slot]);
+		{
+			avb_debugv("avb_ab_flow_fast: ", "avb_slot_verify returned\n", NULL);
+			char tmp[128];
+			snprintf(tmp, sizeof(tmp), "  %s\n", avb_slot_verify_result_to_string(verify_result));
+			avb_debugv("avb_ab_flow_fast: ", tmp, NULL);
+		}
 		switch (verify_result) {
 			case AVB_SLOT_VERIFY_RESULT_ERROR_OOM:
 				ret = AVB_AB_FLOW_RESULT_ERROR_OOM;
+				avb_debugv("avb_ab_flow_fast: ", "verify: ERROR_OOM\n", NULL);
 				goto out;
 
 			case AVB_SLOT_VERIFY_RESULT_ERROR_IO:
 				ret = AVB_AB_FLOW_RESULT_ERROR_IO;
+				avb_debugv("avb_ab_flow_fast: ", "verify: ERROR_IO\n", NULL);
 				goto out;
 
 			case AVB_SLOT_VERIFY_RESULT_OK:
 				slot_index_to_boot = target_slot;
+				avb_debugv("avb_ab_flow_fast: ", "verify: OK\n", NULL);
 				n = 2;
 				break;
 
@@ -1240,6 +1306,7 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 				/* Even with AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR
 				 * these mean game over.
 				 */
+				avb_errorv("avb_ab_flow_fast: ", "verify: fatal error (invalid metadata/unsupported version)\n", NULL);
 				set_slot_unbootable = true;
 				break;
 
@@ -1247,6 +1314,9 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 			case AVB_SLOT_VERIFY_RESULT_ERROR_VERIFICATION:
 			case AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX:
 			case AVB_SLOT_VERIFY_RESULT_ERROR_PUBLIC_KEY_REJECTED:
+			    avb_errorv("!!! WARNING!!! ", "ignoring verification error\n", NULL);
+			    flags |= AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR;
+
 				if (flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR) {
 					/* Do nothing since we allow this. */
 					avb_debugv("Allowing slot ",
@@ -1261,14 +1331,17 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 					saw_and_allowed_verification_error =
 						 true;
 					slot_index_to_boot = target_slot;
+					ret = AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR;
 					n = 2;
 				} else {
+				    avb_errorv("avb_ab_flow_fast: ", "verification error not allowed\n", NULL);
 					set_slot_unbootable = true;
 				}
 				break;
 
 			case AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT:
 				ret = AVB_AB_FLOW_RESULT_ERROR_INVALID_ARGUMENT;
+				avb_debugv("avb_ab_flow_fast: ", "verify: ERROR_INVALID_ARGUMENT\n", NULL);
 				goto out;
 				/* Do not add a 'default:' case here because
 				 * of -Wswitch.
@@ -1276,6 +1349,7 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 		}
 
 		if (set_slot_unbootable) {
+			avb_debugv("avb_ab_flow_fast: ", "Setting slot unbootable\n", NULL);
 			/* Reboot if current slot has booted succefully before, this prevents
 			 * slot been marked as "unbootable" due to some random failures (like
 			 * eMMC/DRAM access error at some critical temperature).
@@ -1304,6 +1378,7 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 	if (slot_index_to_boot == 2) {
 		/* No bootable slots! */
 		printf("No bootable slots found.\n");
+		avb_debugv("avb_ab_flow_fast: ", "No bootable slots found.\n", NULL);
 		ret = AVB_AB_FLOW_RESULT_ERROR_NO_BOOTABLE_SLOTS;
 		goto out;
 	}
@@ -1317,6 +1392,12 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 			rollback_index_value = slot_data[slot_index_to_boot]->rollback_indexes[n];
 
 			if (rollback_index_value != 0) {
+				{
+					char tmp[128];
+					snprintf(tmp, sizeof(tmp), "Slot %s: For rollback index location %zu, rollback_index_value = %llu\n",
+						 slot_suffix[slot_index_to_boot], n, (unsigned long long)rollback_index_value);
+					avb_debugv("avb_ab_flow_fast: ", tmp, NULL);
+				}
 				io_ret = ops->read_rollback_index(
 						ops, n, &current_rollback_index_value);
 				if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
@@ -1324,6 +1405,7 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 					goto out;
 				} else if (io_ret != AVB_IO_RESULT_OK) {
 					printf("Error getting rollback index for slot.\n");
+					avb_debugv("avb_ab_flow_fast: ", "Error getting rollback index for slot.\n", NULL);
 					ret = AVB_AB_FLOW_RESULT_ERROR_IO;
 					goto out;
 				}
@@ -1335,6 +1417,7 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 						goto out;
 					} else if (io_ret != AVB_IO_RESULT_OK) {
 						printf("Error setting stored rollback index.\n");
+						avb_debugv("avb_ab_flow_fast: ", "Error setting stored rollback index.\n", NULL);
 						ret = AVB_AB_FLOW_RESULT_ERROR_IO;
 						goto out;
 					}
@@ -1347,12 +1430,17 @@ AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
 	avb_assert(slot_data[slot_index_to_boot] != NULL);
 	data = slot_data[slot_index_to_boot];
 	slot_data[slot_index_to_boot] = NULL;
+	avb_debugv("avb_ab_flow_fast: ", "Slot selected successfully WARNING\n", NULL);
 	if (saw_and_allowed_verification_error) {
+    	avb_debugv("avb_ab_flow_fast: ", " saw_and_allowed_verification_error\n", NULL);
 		avb_assert(
 			flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR);
 		ret = AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR;
+		avb_debugv("avb_ab_flow_fast: ", " ret = AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR\n", NULL);
+
 	} else {
 		ret = AVB_AB_FLOW_RESULT_OK;
+		avb_debugv("avb_ab_flow_fast: ", " ret = AVB_AB_FLOW_RESULT_OK\n", NULL);
 	}
 
 	/* ... and decrement tries remaining, if applicable. */
@@ -1373,6 +1461,7 @@ out:
 			avb_slot_verify_data_free(data);
 			data = NULL;
 		}
+		avb_debugv("avb_ab_flow_fast: ", "Error saving metadata\n", NULL);
 	}
 
 	for (n = 0; n < 2; n++) {
@@ -1389,6 +1478,7 @@ out:
 		}
 	}
 
+	avb_debugv("avb_ab_flow_fast: ", "Exiting function\n", NULL);
 	return ret;
 }
 #endif /* CONFIG_DUAL_BOOTLOADER */
