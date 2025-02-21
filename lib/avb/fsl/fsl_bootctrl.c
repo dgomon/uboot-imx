@@ -1175,7 +1175,7 @@ AvbABFlowResult avb_single_flow(AvbABOps* ab_ops,
         if (flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR) {
           /* Do nothing since we allow this. */
           avb_debugv("Allowing slot ",
-                     slot_suffix[n],
+//                     slot_suffix[n],
                      " which verified "
                      "with result ",
                      avb_slot_verify_result_to_string(verify_result),
