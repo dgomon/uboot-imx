@@ -394,6 +394,12 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     avb_debugv(part_name, ": Loading entire partition due to allow_verification_error\n", NULL);
   } else {
     avb_debugv(part_name, ": Using image size from descriptor\n", NULL);
+    {
+        char tmp[64];
+        snprintf(tmp, sizeof(tmp), ": image size = %llu\n",
+                 (unsigned long long)image_size);
+        avb_debugv(part_name, tmp, NULL);
+      }
   }
 
   ret = load_full_partition(
