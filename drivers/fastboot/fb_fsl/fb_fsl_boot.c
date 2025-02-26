@@ -1049,50 +1049,65 @@ int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 		ramdisk_addr = ramdisk_addr_relocate;
 	}
 
-	if (boot_header_version == 4) {
+    if (boot_header_version == 4) {
 		/*
 		 * concatenate vendor_boot ramdisk and boot ramdisk, load the
 		 * whole ramdisk directly as we don't have multiple ramdisk.
 		 */
-		memcpy((void *)ramdisk_addr, (void *)(ulong)vendor_boot_hdr_v4 +
-			ALIGN(sizeof(struct vendor_boot_img_hdr_v4), vendor_boot_hdr_v4->page_size),
-			vendor_boot_hdr_v4->vendor_ramdisk_size);
+        printf("do_boota: Boot header version: %d\n", boot_header_version);
 
-		if (with_init_boot) {
-			memcpy((void *)ramdisk_addr + vendor_boot_hdr_v4->vendor_ramdisk_size,
-				(void *)(ulong)init_boot_hdr_v4 + 4096 + ALIGN(init_boot_hdr_v4->kernel_size, 4096),
-				init_boot_hdr_v4->ramdisk_size);
-			ramdisk_size = vendor_boot_hdr_v4->vendor_ramdisk_size + init_boot_hdr_v4->ramdisk_size;
-		} else {
-			memcpy((void *)ramdisk_addr + vendor_boot_hdr_v4->vendor_ramdisk_size,
-				(void *)(ulong)hdr_v4 + 4096 + ALIGN(hdr_v4->kernel_size, 4096),
-				hdr_v4->ramdisk_size);
-			ramdisk_size = vendor_boot_hdr_v4->vendor_ramdisk_size + hdr_v4->ramdisk_size;
-		}
+        printf("do_boota: Concatenating vendor_boot ramdisk and boot ramdisk...\n");
+        memcpy((void *)ramdisk_addr, (void *)(ulong)vendor_boot_hdr_v4 +
+            ALIGN(sizeof(struct vendor_boot_img_hdr_v4), vendor_boot_hdr_v4->page_size),
+            vendor_boot_hdr_v4->vendor_ramdisk_size);
+        printf("do_boota: Vendor ramdisk copied: size=%u\n", vendor_boot_hdr_v4->vendor_ramdisk_size);
+
+        if (with_init_boot) {
+            printf("do_boota: Using init_boot for ramdisk concatenation.\n");
+            memcpy((void *)ramdisk_addr + vendor_boot_hdr_v4->vendor_ramdisk_size,
+                (void *)(ulong)init_boot_hdr_v4 + 4096 + ALIGN(init_boot_hdr_v4->kernel_size, 4096),
+                init_boot_hdr_v4->ramdisk_size);
+            ramdisk_size = vendor_boot_hdr_v4->vendor_ramdisk_size + init_boot_hdr_v4->ramdisk_size;
+            printf("do_boota: Ramdisk size updated with init_boot: %u\n", ramdisk_size);
+        } else {
+            printf("do_boota: Using hdr_v4 for ramdisk concatenation.\n");
+            memcpy((void *)ramdisk_addr + vendor_boot_hdr_v4->vendor_ramdisk_size,
+                (void *)(ulong)hdr_v4 + 4096 + ALIGN(hdr_v4->kernel_size, 4096),
+                hdr_v4->ramdisk_size);
+            ramdisk_size = vendor_boot_hdr_v4->vendor_ramdisk_size + hdr_v4->ramdisk_size;
+            printf("do_boota: Ramdisk size updated with hdr_v4: %u\n", ramdisk_size);
+        }
 
 		/* append build time bootconfig */
-		void *bootconfig_addr = (void *)(ulong)vendor_boot_hdr_v4 +
-					ALIGN(sizeof(struct vendor_boot_img_hdr_v4), vendor_boot_hdr_v4->page_size) +
-					ALIGN(vendor_boot_hdr_v4->vendor_ramdisk_size, vendor_boot_hdr_v4->page_size) +
-					ALIGN(vendor_boot_hdr_v4->dtb_size, vendor_boot_hdr_v4->page_size) +
-					ALIGN(vendor_boot_hdr_v4->vendor_ramdisk_table_size, vendor_boot_hdr_v4->page_size);
-		void *bootconfig_start = (void *)ramdisk_addr + ramdisk_size;
-		memcpy(bootconfig_start, bootconfig_addr, vendor_boot_hdr_v4->bootconfig_size);
+        void *bootconfig_addr = (void *)(ulong)vendor_boot_hdr_v4 +
+                    ALIGN(sizeof(struct vendor_boot_img_hdr_v4), vendor_boot_hdr_v4->page_size) +
+                    ALIGN(vendor_boot_hdr_v4->vendor_ramdisk_size, vendor_boot_hdr_v4->page_size) +
+                    ALIGN(vendor_boot_hdr_v4->dtb_size, vendor_boot_hdr_v4->page_size) +
+                    ALIGN(vendor_boot_hdr_v4->vendor_ramdisk_table_size, vendor_boot_hdr_v4->page_size);
+        void *bootconfig_start = (void *)ramdisk_addr + ramdisk_size;
+        printf("do_boota: Bootconfig address: %p, Bootconfig start: %p\n", bootconfig_addr, bootconfig_start);
+        memcpy(bootconfig_start, bootconfig_addr, vendor_boot_hdr_v4->bootconfig_size);
+        printf("do_boota: Bootconfig copied: size=%u\n", vendor_boot_hdr_v4->bootconfig_size);
 
 		/* append run time bootconfig */
-		uint32_t bootconfig_size;
-		if (append_runtime_bootconfig(bootconfig_start +
-						vendor_boot_hdr_v4->bootconfig_size,
-						&bootconfig_size, (void *)(ulong)fdt_addr) < 0) {
-			printf("do_boota: boota: append runtime bootconfig failed!\n");
-			goto fail;
-		}
-		bootconfig_size += vendor_boot_hdr_v4->bootconfig_size;
-		bootconfig_size += add_bootconfig_trailer((uint64_t)bootconfig_start, bootconfig_size);
+        uint32_t bootconfig_size;
+        printf("do_boota: Appending runtime bootconfig...\n");
+        if (append_runtime_bootconfig(bootconfig_start + vendor_boot_hdr_v4->bootconfig_size,
+                                      &bootconfig_size, (void *)(ulong)fdt_addr) < 0) {
+            printf("do_boota: do_boota: boota: append runtime bootconfig failed!\n");
+            goto fail;
+        }
+        printf("do_boota: Runtime bootconfig appended: size=%u\n", bootconfig_size);
+        bootconfig_size += vendor_boot_hdr_v4->bootconfig_size;
+
+        printf("do_boota: Adding bootconfig trailer...\n");
+        bootconfig_size += add_bootconfig_trailer((uint64_t)bootconfig_start, bootconfig_size);
+        printf("do_boota: Total bootconfig size after trailer: %u\n", bootconfig_size);
 
 		/* update ramdisk size */
-		ramdisk_size += bootconfig_size;
-	} else if (boot_header_version == 3) {
+        ramdisk_size += bootconfig_size;
+        printf("do_boota: Final ramdisk size: %u\n", ramdisk_size);
+    } else if (boot_header_version == 3) {
 		/*
 		 * concatenate vendor_boot ramdisk and boot ramdisk.
 		 */
