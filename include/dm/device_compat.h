@@ -12,9 +12,6 @@
 
 #include <linux/compat.h>
 
-#define DEBUG
-#define VERBOSE_DEBUG
-
 /*
  * REVISIT:
  * remove the following after resolving conflicts with <linux/compat.h>

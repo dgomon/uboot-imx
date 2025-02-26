@@ -54,7 +54,6 @@ extern "C" {
 #define avb_assert_aligned(addr) \
   avb_assert((((uintptr_t)addr) & (AVB_ALIGNMENT_SIZE - 1)) == 0)
 
-#define AVB_ENABLE_DEBUG
 #ifdef AVB_ENABLE_DEBUG
 /* Print functions, used for diagnostics.
  *

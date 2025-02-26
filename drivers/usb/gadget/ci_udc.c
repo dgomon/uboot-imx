@@ -1372,12 +1372,8 @@ static int ci_udc_otg_probe(struct udevice *dev)
 	struct usb_ehci *ehci;
 	int ret;
 
-	printf("Entering ci_udc_otg_probe\n");
-
 	ehci = (struct usb_ehci *)devfdt_get_addr(&priv->otgdev);
-	printf("EHCI address: 0x%p\n", ehci);
 
-    printf("calling pinctrl_select_state()\n");
 	pinctrl_select_state(&priv->otgdev, "default");
 
 #if defined(CONFIG_MX6)
@@ -1388,7 +1384,6 @@ static int ci_udc_otg_probe(struct udevice *dev)
 #endif
 
 	ret = board_usb_init(dev->seq, USB_INIT_DEVICE);
-	printf("board_usb_init returned %d\n", ret);
 	if (ret) {
 		printf("Failed to initialize board for USB\n");
 		return ret;
@@ -1396,41 +1391,30 @@ static int ci_udc_otg_probe(struct udevice *dev)
 
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 	if (!power_domain_get(&priv->otgdev, &priv->otg_pd)) {
-		printf("power_domain_get failed for otgdev\n");
-		if (power_domain_on(&priv->otg_pd)) {
-			printf("power_domain_on failed\n");
+		if (power_domain_on(&priv->otg_pd))
 			return -EINVAL;
-	}
 	}
 #endif
 
 	ret = ci_udc_phy_setup(&priv->otgdev, priv);
-	printf("ci_udc_phy_setup returned %d\n", ret);
 	if (ret)
 		return ret;
 
 	ret = ci_udc_otg_clk_init(&priv->otgdev, &priv->clks);
-	printf("ci_udc_otg_clk_init returned %d\n", ret);
 	if (ret)
 		return ret;
 
 	ret = ehci_mx6_common_init(ehci, dev->seq);
-	printf("ehci_mx6_phy_init completed\n");
-	if (ret) {
-	    printf("ci_udc_otg_probe: returning %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
-	if (ci_udc_otg_phy_mode(dev) != USB_INIT_DEVICE) {
-		printf("ci_udc_otg_phy_mode did not return USB_INIT_DEVICE\n");
+	if (ci_udc_otg_phy_mode(dev) != USB_INIT_DEVICE)
 		return -ENODEV;
-	}
 
 	priv->ctrl.hccr = (struct ehci_hccr *)((ulong)&ehci->caplength);
 	priv->ctrl.hcor = (struct ehci_hcor *)((ulong)priv->ctrl.hccr +
 			HC_LENGTH(ehci_readl(&(priv->ctrl.hccr)->cr_capbase)));
 	controller.ctrl = &priv->ctrl;
-	printf("Controller set: hccr=%p, hcor=%p\n", priv->ctrl.hccr, priv->ctrl.hcor);
 
 	ret = ci_udc_probe();
 	if (ret) {
@@ -1438,10 +1422,8 @@ static int ci_udc_otg_probe(struct udevice *dev)
 		return ret;
 	}
 
-	printf("calling usb_add_gadget_udc\n");
 	ret = usb_add_gadget_udc((struct device *)dev, &controller.gadget);
 
-    printf("returning %d\n", ret);
 	return ret;
 }
 
