@@ -494,14 +494,17 @@ int bootm_find_images(ulong img_addr, const char *conf_ramdisk,
 
 	if (IS_ENABLED(CONFIG_ANDROID_BOOT_IMAGE)) {
 		/* Look for an Android boot image */
+		printf("## Booting Android Image\n");
 		buf = map_sysmem(images.os.start, 0);
 		if (buf && genimg_get_format(buf) == IMAGE_FORMAT_ANDROID) {
 			strcpy(addr_str, simple_xtoa(img_addr));
 			select = addr_str;
 		}
+	} else {
+		printf("ERROR: bootm_find_images: CONFIG_ANDROID_BOOT_IMAGE is not enabled\n");
 	}
 
-	if (conf_ramdisk)
+	if (conf_ramdisk) 
 		select = conf_ramdisk;
 
 	/* find ramdisk */
@@ -510,11 +513,17 @@ int bootm_find_images(ulong img_addr, const char *conf_ramdisk,
 	if (ret) {
 		puts("Ramdisk image is corrupt or invalid\n");
 		return 1;
+	} else {
+		puts("## Ramdisk image is valid\n");
 	}
 
 	/* check if ramdisk overlaps OS image */
-	if (check_overlap("RD", images.rd_start, images.rd_end, start, size))
+	if (check_overlap("RD", images.rd_start, images.rd_end, start, size)) {
+		printf("Ramdisk image overlaps OS image\n");
 		return 1;
+	} else {
+		printf("Ramdisk image is %ld bytes\n", images.rd_end - images.rd_start);
+	}
 
 	if (CONFIG_IS_ENABLED(OF_LIBFDT)) {
 		buf = map_sysmem(img_addr, 0);
@@ -525,14 +534,21 @@ int bootm_find_images(ulong img_addr, const char *conf_ramdisk,
 		if (ret) {
 			puts("Could not find a valid device tree\n");
 			return 1;
+		} else {
+			puts("## Flattened Device Tree found\n");
 		}
 
 		/* check if FDT overlaps OS image */
 		if (check_overlap("FDT", map_to_sysmem(images.ft_addr),
-				  images.ft_len, start, size))
+				  images.ft_len, start, size)){
+			printf("FDT image overlaps OS image\n");
 			return 1;
+		}
+		else {
+			printf("FDT image is %ld bytes\n", images.ft_len);
+		}
 
-		if (IS_ENABLED(CONFIG_CMD_FDT))
+		if (IS_ENABLED(CONFIG_CMD_FDT)) 
 			set_working_fdt_addr(map_to_sysmem(images.ft_addr));
 	}
 
@@ -703,7 +719,7 @@ static int bootm_load_os(struct bootm_headers *images, int boot_progress)
 
 		/* Handle BOOTM_STATE_LOADOS */
 		if (relocated_addr != load) {
-			printf("Moving Image from 0x%lx to 0x%lx, end=%lx\n",
+			printf("bootm.c: Moving Image from 0x%lx to 0x%lx, end=%lx\n",
 			       load, relocated_addr,
 			       relocated_addr + image_size);
 			memmove((void *)relocated_addr, load_buf, image_size);
