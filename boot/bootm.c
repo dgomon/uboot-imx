@@ -492,6 +492,7 @@ int bootm_find_images(ulong img_addr, const char *conf_ramdisk,
 	void *buf;
 	int ret;
 
+    printf("bootm_find_images: enter, conf_ramdisk=%s\n", conf_ramdisk);
 	if (IS_ENABLED(CONFIG_ANDROID_BOOT_IMAGE)) {
 		/* Look for an Android boot image */
 		printf("## Booting Android Image\n");
@@ -581,6 +582,7 @@ static int bootm_find_other(ulong img_addr, const char *conf_ramdisk,
 	     images.os.type == IH_TYPE_MULTI) &&
 	    (images.os.os == IH_OS_LINUX || images.os.os == IH_OS_VXWORKS ||
 	     images.os.os == IH_OS_EFI || images.os.os == IH_OS_TEE)) {
+	     printf("calling bootm_find_images 2\n");
 		return bootm_find_images(img_addr, conf_ramdisk, conf_fdt, 0,
 					 0);
 	}

@@ -108,6 +108,7 @@ static int booti_start(struct bootm_info *bmi)
 	 * Handle the BOOTM_STATE_FINDOTHER state ourselves as we do not
 	 * have a header that provide this informaiton.
 	 */
+	printf("calling bootm_find_images 1\n");
 	if (bootm_find_images(image_load_addr, bmi->conf_ramdisk, bmi->conf_fdt,
 			      relocated_addr, image_size)) {
         printf("bootm_find_images: \n");
