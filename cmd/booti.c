@@ -127,7 +127,7 @@ int do_booti(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	/* Consume 'booti' */
 	argc--; argv++;
 
-	printf("do_booti: enter, argc=%d\n");
+	printf("do_booti: enter, argc=%d\n", argc);
 
 	bootm_init(&bmi);
 	if (argc){
