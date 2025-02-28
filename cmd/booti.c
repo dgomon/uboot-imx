@@ -127,19 +127,38 @@ int do_booti(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	/* Consume 'booti' */
 	argc--; argv++;
 
+	printf("do_booti: enter, argc=%d\n");
+
 	bootm_init(&bmi);
-	if (argc)
+	if (argc){
 		bmi.addr_img = argv[0];
-	if (argc > 1)
+		printf("do_booti: bmi.addr_img=%s\n", bmi.addr_img);
+	} else {
+		printf("do_booti: bmi.addr_img=NULL\n");
+	}
+	if (argc > 1){
 		bmi.conf_ramdisk = argv[1];
-	if (argc > 2)
+		printf("do_booti: bmi.conf_ramdisk=%s\n", bmi.conf_ramdisk);
+	} else {
+		printf("do_booti: bmi.conf_ramdisk=NULL\n");
+	}
+
+	if (argc > 2) {
 		bmi.conf_fdt = argv[2];
+		printf("do_booti: bmi.conf_fdt=%s\n", bmi.conf_fdt);
+	} else {
+		printf("do_booti: bmi.conf_fdt=NULL\n");
+	}
 	bmi.boot_progress = true;
 	bmi.cmd_name = "booti";
 	/* do not set up argc and argv[] since nothing uses them */
 
-	if (booti_start(&bmi))
+	if (booti_start(&bmi)){
+		printf("booti_start: ERROR\n");
 		return 1;
+	} else {
+		printf("booti_start: OK\n");
+	}
 
 	/*
 	 * We are doing the BOOTM_STATE_LOADOS state ourselves, so must
