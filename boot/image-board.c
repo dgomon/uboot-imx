@@ -474,7 +474,7 @@ int boot_get_ramdisk(char const *select, struct bootm_headers *images,
 	*rd_start = 0;
 	*rd_end = 0;
 
-	printf("boot_get_ramdisk: enter\n");
+	printf("boot_get_ramdisk: enter, select=%s\n", select);
 
 	/*
 	 * Look for a '-' which indicates to ignore the
