@@ -316,6 +316,8 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 	ulong rd_addr = 0;
 	char *buf;
 
+	printf("==> select_ramdisk: select=%s, arch=%u\n", select ? select : "(null)", arch);
+
 	if (CONFIG_IS_ENABLED(FIT)) {
 		fit_uname_config = images->fit_uname_cfg;
 		fit_uname_ramdisk = NULL;
@@ -336,29 +338,30 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 			if (fit_parse_conf(select, default_addr, &rd_addr,
 					   &fit_uname_config)) {
 				debug("*  ramdisk: config '%s' from image at 0x%08lx\n",
-				      fit_uname_config, rd_addr);
+				         fit_uname_config, rd_addr);
 				done_select = true;
-			} else if (fit_parse_subimage(select, default_addr,
-						      &rd_addr,
-						      &fit_uname_ramdisk)) {
+			} else if (fit_parse_subimage(select, default_addr, &rd_addr, &fit_uname_ramdisk)) {
 				debug("*  ramdisk: subimage '%s' from image at 0x%08lx\n",
-				      fit_uname_ramdisk, rd_addr);
+				         fit_uname_ramdisk, rd_addr);
 				done_select = true;
 			}
 		}
 	}
+
 	if (!done_select) {
 		rd_addr = hextoul(select, NULL);
 		debug("*  ramdisk: cmdline image address = 0x%08lx\n", rd_addr);
 	}
+
 	if (CONFIG_IS_ENABLED(FIT) && !select) {
 		/* use FIT configuration provided in first bootm
 		 * command argument. If the property is not defined,
 		 * quit silently (with -ENOPKG)
 		 */
 		rd_addr = map_to_sysmem(images->fit_hdr_os);
-		rd_noffset = fit_get_node_from_config(images, FIT_RAMDISK_PROP,
-						      rd_addr);
+		rd_noffset = fit_get_node_from_config(images, FIT_RAMDISK_PROP, rd_addr);
+		printf("FIT ramdisk from config, addr=0x%08lx, rd_noffset=%d\n", rd_addr, rd_noffset);
+
 		if (rd_noffset == -ENOENT)
 			return -ENOPKG;
 		else if (rd_noffset < 0)
@@ -380,11 +383,11 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 			       rd_addr);
 
 			bootstage_mark(BOOTSTAGE_ID_CHECK_RAMDISK);
-			rd_hdr = image_get_ramdisk(rd_addr, arch,
-						   images->verify);
-
-			if (!rd_hdr)
+			rd_hdr = image_get_ramdisk(rd_addr, arch, images->verify);
+			if (!rd_hdr) {
+				printf("Invalid legacy ramdisk image\n");
 				return -ENOENT;
+			}
 
 			*rd_datap = image_get_data(rd_hdr);
 			*rd_lenp = image_get_data_size(rd_hdr);
@@ -393,10 +396,9 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 		break;
 	case IMAGE_FORMAT_FIT:
 		if (CONFIG_IS_ENABLED(FIT)) {
-			rd_noffset = fit_image_load(images, rd_addr,
-						    &fit_uname_ramdisk,
-						    &fit_uname_config,
-						    arch, IH_TYPE_RAMDISK,
+			printf("Detected FIT image format at 0x%08lx\n", rd_addr);
+			rd_noffset = fit_image_load(images, rd_addr, &fit_uname_ramdisk,
+						    &fit_uname_config, arch, IH_TYPE_RAMDISK,
 						    BOOTSTAGE_ID_FIT_RD_START,
 						    FIT_LOAD_OPTIONAL_NON_ZERO,
 						    rd_datap, rd_lenp);
@@ -411,13 +413,13 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 		break;
 	case IMAGE_FORMAT_ANDROID:
 		if (IS_ENABLED(CONFIG_ANDROID_BOOT_IMAGE)) {
+			printf("Detected Android boot image format at 0x%08lx\n", rd_addr);
 			int ret;
 			if (IS_ENABLED(CONFIG_CMD_ABOOTIMG)) {
 				void *boot_img = map_sysmem(get_abootimg_addr(), 0);
 				void *vendor_boot_img = map_sysmem(get_avendor_bootimg_addr(), 0);
 
-				ret = android_image_get_ramdisk(boot_img, vendor_boot_img,
-								rd_datap, rd_lenp);
+				ret = android_image_get_ramdisk(boot_img, vendor_boot_img, rd_datap, rd_lenp);
 				unmap_sysmem(vendor_boot_img);
 				unmap_sysmem(boot_img);
 			} else {
@@ -427,32 +429,40 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 				unmap_sysmem(ptr);
 			}
 
-			if (ret)
+			if (ret) {
+				printf("Android ramdisk extraction failed, ret=%d\n", ret);
 				return ret;
+			}
 			done = true;
 		}
+		break;
+	default:
+		printf("Unknown ramdisk image format\n");
 		break;
 	}
 
 	if (!done) {
 		if (IS_ENABLED(CONFIG_SUPPORT_RAW_INITRD)) {
 			char *end = NULL;
+			printf("Trying raw initrd support...\n");
 
 			if (select)
 				end = strchr(select, ':');
 			if (end) {
 				*rd_lenp = hextoul(++end, NULL);
 				*rd_datap = rd_addr;
+				printf("Using raw initrd: addr=0x%08lx, size=%lu\n", rd_addr, *rd_lenp);
 				done = true;
 			}
 		}
 
 		if (!done) {
-			puts("Wrong Ramdisk Image Format\n");
+			printf("Failed to load ramdisk: Wrong format\n");
 			return -EINVAL;
 		}
 	}
 
+	printf("<== select_ramdisk: Success, rd_data=0x%08lx, rd_len=%lu\n", *rd_datap, *rd_lenp);
 	return 0;
 }
 
@@ -464,38 +474,45 @@ int boot_get_ramdisk(char const *select, struct bootm_headers *images,
 	*rd_start = 0;
 	*rd_end = 0;
 
+	printf("boot_get_ramdisk: enter\n");
+
 	/*
 	 * Look for a '-' which indicates to ignore the
 	 * ramdisk argument
 	 */
 	if (select && strcmp(select, "-") ==  0) {
-		debug("## Skipping init Ramdisk\n");
+		printf("## Skipping init Ramdisk\n");
 		rd_len = 0;
 		rd_data = 0;
 	} else if (select || genimg_has_config(images)) {
 		int ret;
 
+		printf("## Trying to select and init Ramdisk\n");
 		ret = select_ramdisk(images, select, arch, &rd_data, &rd_len);
-		if (ret == -ENOPKG)
+		if (ret == -ENOPKG) {
+			printf("## select_ramdisk returned -ENOPKG\n");
 			return 0;
-		else if (ret)
+		} else if (ret) {
+			printf("## Error selecting init Ramdisk\n");
 			return ret;
-	} else if (images->legacy_hdr_valid &&
+		} else if (images->legacy_hdr_valid &&
 			image_check_type(&images->legacy_hdr_os_copy,
 					 IH_TYPE_MULTI)) {
-		/*
-		 * Now check if we have a legacy mult-component image,
-		 * get second entry data start address and len.
-		 */
-		bootstage_mark(BOOTSTAGE_ID_RAMDISK);
-		printf("## Loading init Ramdisk from multi component Legacy Image at %08lx ...\n",
-		       (ulong)images->legacy_hdr_os);
+            /*
+             * Now check if we have a legacy mult-component image,
+             * get second entry data start address and len.
+             */
+            bootstage_mark(BOOTSTAGE_ID_RAMDISK);
+            printf("## Loading init Ramdisk from multi component Legacy Image at %08lx ...\n",
+                   (ulong)images->legacy_hdr_os);
 
-		image_multi_getimg(images->legacy_hdr_os, 1, &rd_data, &rd_len);
+            image_multi_getimg(images->legacy_hdr_os, 1, &rd_data, &rd_len);
+        }
 	} else {
 		/*
 		 * no initrd image
 		 */
+		printf("## No initrd\n");
 		bootstage_mark(BOOTSTAGE_ID_NO_RAMDISK);
 		rd_len = 0;
 		rd_data = 0;
