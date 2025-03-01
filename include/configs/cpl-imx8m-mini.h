@@ -143,26 +143,6 @@
 			"booti; " \
 		"fi;\0"
 
-#undef CONFIG_BOOTCOMMAND
-#define CONFIG_BOOTCOMMAND \
-	"for src in sd_ul usb_ul emmc_ul; do " \
-		"run ${src}; " \
-		"if run ulbootscript; then " \
-			"run bootscript; " \
-		"else " \
-			"if run ulimage; then " \
-				"if run ulfdt; then " \
-					"booti ${loadaddr} - ${fdt_addr}; " \
-				"else " \
-					"if test ${boot_fdt} != yes; then " \
-						"booti ${loadaddr}; " \
-					"fi; " \
-				"fi; " \
-			"fi; " \
-		"fi; " \
-	"done; " \
-	"usb start; ums 0 mmc ${mmcdev};"
-
 #define CFG_SYS_INIT_RAM_ADDR        0x40000000
 #define CFG_SYS_INIT_RAM_SIZE        0x80000
 #define CFG_SYS_INIT_SP_OFFSET \
